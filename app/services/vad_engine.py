@@ -26,7 +26,7 @@ class VadEngine:
     def __init__(self, model_id: str, device: str):
         self.model_id = model_id
         self.device = device
-        self.model = AutoModel(model=model_id, device=device, disable_update=False)
+        self.model = AutoModel(model=model_id, device=device, disable_update=True)
 
     def infer_segments_ms(self, wav_path: Path) -> VadOutput:
         try:
