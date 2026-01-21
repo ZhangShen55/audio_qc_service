@@ -118,7 +118,12 @@ class AudioQCService:
 
             # 清晰度（V1规则版）
             if aqc.need_clarity:
-                clarity, detail = compute_clarity_v1(audio.wav, audio.sample_rate, merged)
+                clarity, detail = compute_clarity_v1(
+                                    audio.wav,
+                                    audio.sample_rate,
+                                    merged,
+                                    self.cfg.audio_qc.clarity_v1,
+                                )
                 clarity_detail = {
                     "snr_db": float(round(detail.snr_db, 4)),
                     "hf_ratio": float(round(detail.hf_ratio, 6)),

@@ -6,6 +6,8 @@ import numpy as np
 from scipy.signal import stft
 
 from services.metrics.vad_utils import clamp01
+from core.config import ClarityV1Config
+
 
 
 @dataclass(frozen=True)
@@ -78,9 +80,7 @@ def compute_clarity_v1(
     x: np.ndarray,
     sr: int,
     speech_segments_ms: list[list[int]],
-    snr_db_scope: tuple[float, float] = (-5.0, 10.0), # 语音帧vs非语音帧底噪
-    hf_ratio_scope: tuple[float, float] = (0.0, 0.05),
-    
+    cfg: ClarityV1Config,
 ) -> tuple[float, ClarityDetail]:
     """
     清晰度 V1（规则版）：
@@ -93,26 +93,29 @@ def compute_clarity_v1(
     """
     # STFT
     # 20ms 窗，10ms hop
-    nperseg = max(256, int(sr * 0.02))
-    noverlap = int(nperseg * 0.5)
+    nperseg = max(256, int(sr * (cfg.win_ms / 1000.0)))
+    noverlap = max(0, nperseg - int(sr * (cfg.hop_ms / 1000.0)))
 
-    f, t, Zxx = stft(x.astype(np.float32, copy=False), fs=sr, nperseg=nperseg, noverlap=noverlap, padded=False)
+    f, t, Zxx = stft(x.astype(np.float32, copy=False), fs=sr, nperseg=nperseg, noverlap=noverlap, padded=False, boundary=None)
     power = np.abs(Zxx) ** 2
 
     snr_db = _snr_db_from_segments(x, sr, speech_segments_ms)
-    hf_ratio = _hf_ratio(f, power, 3000.0, min(8000.0, float(sr) / 2.0))
+    hf_ratio = _hf_ratio(f, power, cfg.hf_lo_hz, min(cfg.hf_hi_hz, float(sr) / 2.0))
+
     flat = _spectral_flatness(power)
-    print(f"flat={flat:.4f}")
+    # print(f"flat={flat:.4f}")
 
     # 归一化（可按业务调参）
     # snr_score: -5dB -> 0, 10dB -> 1
-    snr_score = clamp01((snr_db + 5.0) / 15.0)
-    # hf_score: 0.0 -> 0, 0.05 -> 1（闷音/带宽窄会很低）
-    hf_score = clamp01(hf_ratio / 0.02) # hf_ratio 越大越好
-    # flat_score: 0.0 -> 1, 0.1 -> 0（越平坦越像噪声）
-    flat_score = 1.0 - clamp01(flat / 0.10) # _spectral_flatness(flat) 越小越好
-    print(f"flat_score={flat_score:.4f}")
+    snr_score = clamp01((snr_db - cfg.snr_min_db) / (cfg.snr_max_db - cfg.snr_min_db))
+    # hf_score: 0.0 -> 0, 0.02 -> 1（闷音/带宽窄会很低）
+    hf_score = clamp01(hf_ratio / cfg.hf_ref)
+    # flat_score: 0.0 -> 1, 0.1 -> 0（越平坦越像噪声） flat越小越好
+    flat_score = 1.0 - clamp01(flat / cfg.flat_ref)
 
-    clarity = 100.0 * (0.50 * snr_score + 0.30 * hf_score + 0.20 * flat_score)
+    # print(f"flat_score={flat_score:.4f}")
+    ws = np.array([cfg.w_snr, cfg.w_hf, cfg.w_flat], dtype=np.float64)
+    ws = ws / max(1e-12, float(ws.sum()))
+    clarity = 100.0 * (ws[0] * snr_score + ws[1] * hf_score + ws[2] * flat_score)
     detail = ClarityDetail(snr_db=float(snr_db), hf_ratio=float(hf_ratio), spectral_flatness=float(flat))
     return float(round(clarity, 4)), detail

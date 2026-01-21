@@ -15,3 +15,22 @@ min_duration_ms = 10000      # 3min，按需改
 max_duration_ms = 6600000     # 110min，按需改
 
 need_clarity = true
+
+
+[audio_qc.clarity_v1]
+# STFT 参数
+win_ms = 20.0 # 窗长
+hop_ms = 10.0 # 步长
+# 频段（同样建议可配）
+hf_lo_hz = 3000.0
+hf_hi_hz = 8000.0
+# 归一化阈值
+snr_min_db = -5.0      # 对应 0 分
+snr_max_db = 10.0      # 对应 1 分
+hf_ref = 0.02          # hf_ratio / hf_ref 越趋于0.02，越能检测到 hf 频段 越趋近于1分
+flat_ref = 0.10        # flat / flat_ref 
+# 权重（会自动归一化到和为1，避免误配）
+w_snr = 0.50
+w_hf = 0.30
+w_flat = 0.20
+
