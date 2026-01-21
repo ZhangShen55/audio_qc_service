@@ -21,13 +21,13 @@ POST `/v1/audio/qc`
 
 ## status_code
 - 200: OK
-- 1001: missing file / empty file
-- 1002: duration out of range [min_duration_ms, max_duration_ms]
-- 1003: file too large > max_file_size_mb
-- 2001: decode failed (ffmpeg/codec)
-- 2002: resample failed (cannot reach mono 16k)
-- 2003: invalid audio (NaN/Inf/empty samples)
-- 3001: VAD infer failed
+- 1001: 音频文件缺失/空
+- 1002: 音频文件时间过短/过长
+- 1003: 文件太大 M
+- 2001: 解码失败 (ffmpeg/codec)
+- 2002: 重采样失败
+- 2003: 不可用的音频文件格式 (NaN/Inf/empty samples)
+- 3001: VAD 推断失败
 
 ## Success data schema
 ```json
@@ -49,9 +49,7 @@ POST `/v1/audio/qc`
 }
 ```
 ### Notes
-- `speech_ratio` is clamped to `[0,1]` and rounded to 4 decimals.
-
+- `speech_ratio` is clamped to `[0,1]` 保留4位小数.
 - If `need_clarity=false` in config, `clarity=null` and `clarity_detail=null`.
-
 - If `return_segments=false` in config, `vad.segments_ms=[]` but `vad.speech_ms` is still returned.
 
