@@ -32,8 +32,9 @@ def create_app() -> FastAPI:
     async def on_startup() -> None:
         # Path(__file__).resolve() # output: /path/to/audio_qc_service/app/main.py
         CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.toml" # /path/to/audio_qc_service
+        LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
         cfg = load_config(CONFIG_PATH)
-        init_logging("INFO")
+        init_logging(cfg.server.log_level, log_dir=LOG_DIR)
 
         executor = create_threadpool(cfg)
         loop = asyncio.get_running_loop()
