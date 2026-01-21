@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import sys
 from contextvars import ContextVar
+from pathlib import Path
 
 _request_id_ctx: ContextVar[str] = ContextVar("request_id", default="-")
 
@@ -18,10 +19,11 @@ def set_request_id(request_id: str) -> None:
     _request_id_ctx.set(request_id)
 
 
-def init_logging(level: str = "INFO") -> None:
+def init_logging(level: str = "INFO", log_dir: str | Path = "logs") -> None:
     """
     初始化日志：
-    - 输出到 stdout
+    - 输出到 stdout（控制台）
+    - 输出到文件（log_dir/app.log）
     - 格式包含 request_id
     """
     root = logging.getLogger()
@@ -30,10 +32,23 @@ def init_logging(level: str = "INFO") -> None:
     # 避免重复 handler
     root.handlers.clear()
 
-    handler = logging.StreamHandler(sys.stdout)
     fmt = "%(asctime)s %(levelname)s [%(request_id)s] %(name)s: %(message)s"
-    handler.setFormatter(logging.Formatter(fmt=fmt))
-    handler.addFilter(RequestIdFilter())
+    formatter = logging.Formatter(fmt=fmt)
+    request_filter = RequestIdFilter()
 
-    root.addHandler(handler)
+    # 控制台输出
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.addFilter(request_filter)
+    root.addHandler(console_handler)
+
+    # 文件输出
+    log_dir_path = Path(log_dir)
+    log_dir_path.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir_path / "app.log"
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    file_handler.addFilter(request_filter)
+    root.addHandler(file_handler)
 

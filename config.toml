@@ -1,6 +1,7 @@
 [server]
 threadpool_workers = 8
 gpu_infer_concurrency = 1
+log_level = "ERROR"           # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 [audio_qc]
 vad_model = "iic/speech_fsmn_vad_zh-cn-16k-common-pytorch"

@@ -14,6 +14,8 @@ class ServerConfig:
     threadpool_workers: int = 8
     # GPU 推理并发（同一进程内，同一张卡建议 1~2）
     gpu_infer_concurrency: int = 1
+    # 日志级别（DEBUG, INFO, WARNING, ERROR）
+    log_level: str = "INFO"
 
 @dataclass(frozen=True)
 class ClarityV1Config:
@@ -80,6 +82,7 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
     server_cfg = ServerConfig(
         threadpool_workers=int(server.get("threadpool_workers", ServerConfig.threadpool_workers)),
         gpu_infer_concurrency=int(server.get("gpu_infer_concurrency", ServerConfig.gpu_infer_concurrency)),
+        log_level=str(server.get("log_level", ServerConfig.log_level)).upper(),
     )
 
     clarity_cfg = ClarityV1Config(
@@ -114,6 +117,9 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
         raise ValueError("server.threadpool_workers must be > 0")
     if server_cfg.gpu_infer_concurrency <= 0:
         raise ValueError("server.gpu_infer_concurrency must be > 0")
+    valid_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+    if server_cfg.log_level not in valid_log_levels:
+        raise ValueError(f"server.log_level must be one of {valid_log_levels}, got {server_cfg.log_level}")
     if audio_cfg.merge_gap_ms < 0:
         raise ValueError("audio_qc.merge_gap_ms must be >= 0")
     if audio_cfg.max_file_size_mb <= 0:
