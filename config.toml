@@ -1,0 +1,17 @@
+[server]
+threadpool_workers = 8
+gpu_infer_concurrency = 1
+
+[audio_qc]
+vad_model = "iic/speech_fsmn_vad_zh-cn-16k-common-pytorch"
+device = "cuda:0"
+
+return_segments = true
+merge_gap_ms = 120
+silence_dbfs = -60.0
+
+max_file_size_mb = 300
+min_duration_ms = 10000      # 3min，按需改
+max_duration_ms = 6600000     # 110min，按需改
+
+need_clarity = true

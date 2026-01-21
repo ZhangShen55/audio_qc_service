@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.so
+*.log
+*.json
+*.txt
+.env
+*.md~
+*.swp
+.idea/
+.vscode/
+*.wav
+*.mp3
+*.aac
+*.egg-info/
+.DS_Store
