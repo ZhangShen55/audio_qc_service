@@ -1,6 +1,7 @@
 # app/services/vad_engine.py
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,10 @@ from funasr import AutoModel
 
 class VadInferError(RuntimeError):
     pass
+
+
+# 全局互斥锁：FunASR AutoModel 不是线程安全的，需要保护并发调用
+_vad_infer_lock = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -29,8 +34,16 @@ class VadEngine:
         self.model = AutoModel(model=model_id, device=device, disable_update=True)
 
     def infer_segments_ms(self, wav_path: Path) -> VadOutput:
+        """
+        执行 VAD 推理，用互斥锁保证线程安全。
+
+        由于 FunASR AutoModel 内部不是线程安全的（可能访问共享缓冲区），
+        多个线程同时调用 model.generate() 会导致内存竞争。
+        所以用全局互斥锁序列化所有 VAD 推理调用。
+        """
         try:
-            res = self.model.generate(input=str(wav_path))
+            with _vad_infer_lock:
+                res = self.model.generate(input=str(wav_path))
         except Exception as e:
             raise VadInferError(f"VAD infer failed: {e}") from e
 

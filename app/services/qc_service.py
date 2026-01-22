@@ -110,15 +110,26 @@ class AudioQCService:
             )
             logger.debug(f"[METRICS] Silence detection completed. is_silent={silent}")
 
-            # VAD 推理（GPU 限流）
+            # VAD 推理（GPU 限流 + 线程安全）
+            #
+            # 并发流程说明：
+            # 1. Semaphore.acquire() - 最多 N 个请求并发获取 GPU 信号量
+            # 2. asyncio.to_thread() - 在线程池线程中执行 VAD 推理
+            # 3. VadEngine.infer_segments_ms() - 内部用互斥锁保证线程安全
+            # 4. Semaphore.release() - 释放 GPU 信号量给下一个请求
+            #
+            # 实际行为：最多 N 个请求"等待 GPU"（acquire）和"正在推理"（locked），
+            # 其他请求排队等待前面的请求释放信号量。
             logger.info(f"[METRICS] Starting VAD inference")
             try:
-                if self.gpu_sem is None:
+                if self.gpu_sem is not None:
+                    await self.gpu_sem.acquire()
+                try:
                     vad_out = await asyncio.to_thread(self.vad_engine.infer_segments_ms, wav_path)
-                else:
-                    async with self.gpu_sem:
-                        vad_out = await asyncio.to_thread(self.vad_engine.infer_segments_ms, wav_path)
-                logger.debug(f"[METRICS] VAD inference completed. segments_count={len(vad_out.segments_ms)}")
+                    logger.debug(f"[METRICS] VAD inference completed. segments_count={len(vad_out.segments_ms)}")
+                finally:
+                    if self.gpu_sem is not None:
+                        self.gpu_sem.release()
             except VadInferError as e:
                 logger.error(f"[METRICS] VAD inference error. error={str(e)}")
                 return QCResult(ok=False, status_code=status_codes.VAD_INFER_FAILED, data={})
