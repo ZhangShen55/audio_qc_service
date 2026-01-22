@@ -11,7 +11,7 @@ dependencies = [
   "scipy==1.15.2",
   "soundfile==0.13.1",
   "funasr==1.2.6",
-  "toml"
+  "tomli==2.4.0"
 ]
 
 [tool.uvicorn]
