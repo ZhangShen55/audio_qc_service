@@ -7,12 +7,12 @@
 [server]
 log_level = "INFO"        # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
 threadpool_workers = 20   # cpu线程池
-gpu_infer_concurrency = 4 # gpu信号量 
+gpu_infer_concurrency = 1 # gpu信号量 
 
 [audio_qc]
 vad_model = "iic/speech_fsmn_vad_zh-cn-16k-common-pytorch"
 device = "cuda:0"
-vad_num_workers = 4     # VAD 进程池，推荐与gpu_infer_concurrency相同
+vad_num_workers = 1     # VAD 进程池，推荐与gpu_infer_concurrency相同
 return_segments = true  # 是否返回分段结果
 merge_gap_ms = 120
 silence_dbfs = -60.0
@@ -23,7 +23,7 @@ need_clarity = true  # 是否需要清晰度检测
 
 [audio_qc.clipping]
 # 削波检测参数
-clip_threshold = 0.5        # 削波阈值 (0-1)，越接近1检测爆点的条件越严格
+clip_threshold = 0.80        # 削波阈值 (0-1)，越接近1检测爆点的条件越严格
 min_event_samples = 10       # 最小事件长度（样本数），16kHz时10≈0.625ms
 
 [audio_qc.clarity_v1]
@@ -33,11 +33,22 @@ hop_ms = 10.0 # 步长
 # 频段（同样建议可配）
 hf_lo_hz = 3000.0
 hf_hi_hz = 8000.0
-# 归一化阈值
-snr_min_db = -5.0      # 对应 0 分
-snr_max_db = 10.0      # 对应 1 分
-hf_ref = 0.02          # hf_ratio / hf_ref 越趋于0.02，越能检测到 hf 频段 越趋近于1分
-flat_ref = 0.10        # flat / flat_ref 
+
+# SNR 归一化（第一段：越高越好，分数 0->1）
+snr_min_db = -5.0      # 第一段下限，对应 0 分
+snr_max_db = 10.0      # 第一段上限，对应 1 分
+# SNR 归一化（第二段：越高越差，分数 1->0）
+snr_min_db2 = 20.0     # 第二段下限，对应 1 分
+snr_max_db2 = 35.0     # 第二段上限，对应 0 分
+
+# 高频能量比归一化（第一段：0->hf_ref 越高越好，分数 0->1）
+hf_ref = 0.02          # 第一段上限，对应 1 分
+# 高频能量比归一化（第二段：hf_ref2_l->hf_ref2_h 越高越差，分数 1->0）
+hf_ref2_l = 0.02       # 第二段下限，对应 1 分
+hf_ref2_h = 0.06       # 第二段上限，对应 0 分
+
+flat_ref = 0.10        # flat / flat_ref，越平坦越像噪声
+
 # 权重（会自动归一化到和为1，避免误配）
 w_snr = 0.50
 w_hf = 0.30

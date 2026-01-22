@@ -103,17 +103,29 @@ def compute_clarity_v1(
     hf_ratio = _hf_ratio(f, power, cfg.hf_lo_hz, min(cfg.hf_hi_hz, float(sr) / 2.0))
 
     flat = _spectral_flatness(power)
-    # print(f"flat={flat:.4f}")
 
-    # 归一化（可按业务调参）
-    # snr_score: -5dB -> 0, 10dB -> 1
-    snr_score = clamp01((snr_db - cfg.snr_min_db) / (cfg.snr_max_db - cfg.snr_min_db))
-    # hf_score: 0.0 -> 0, 0.02 -> 1（闷音/带宽窄会很低）
-    hf_score = clamp01(hf_ratio / cfg.hf_ref)
+    # SNR 分段归一化
+    # 第一段：snr_min_db -> snr_max_db，分数 0 -> 1（越高越好）
+    # 中间段：snr_max_db -> snr_min_db2，保持 1 分
+    # 第二段：snr_min_db2 -> snr_max_db2，分数 1 -> 0（越高越差）
+    if snr_db < cfg.snr_max_db:
+        snr_score = clamp01((snr_db - cfg.snr_min_db) / (cfg.snr_max_db - cfg.snr_min_db))
+    elif snr_db < cfg.snr_min_db2:
+        snr_score = 1.0
+    else:
+        snr_score = clamp01(1.0 - (snr_db - cfg.snr_min_db2) / (cfg.snr_max_db2 - cfg.snr_min_db2))
+
+    # 高频能量比分段归一化
+    # 第一段：0 -> hf_ref，分数 0 -> 1（越高越好）
+    # 第二段：hf_ref2_l -> hf_ref2_h，分数 1 -> 0（越高越差）
+    if hf_ratio < cfg.hf_ref2_l:
+        hf_score = clamp01(hf_ratio / cfg.hf_ref)
+    else:
+        hf_score = clamp01(1.0 - (hf_ratio - cfg.hf_ref2_l) / (cfg.hf_ref2_h - cfg.hf_ref2_l))
+
     # flat_score: 0.0 -> 1, 0.1 -> 0（越平坦越像噪声） flat越小越好
     flat_score = 1.0 - clamp01(flat / cfg.flat_ref)
 
-    # print(f"flat_score={flat_score:.4f}")
     ws = np.array([cfg.w_snr, cfg.w_hf, cfg.w_flat], dtype=np.float64)
     ws = ws / max(1e-12, float(ws.sum()))
     clarity = 100.0 * (ws[0] * snr_score + ws[1] * hf_score + ws[2] * flat_score)

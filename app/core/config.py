@@ -24,9 +24,19 @@ class ClarityV1Config:
     hf_lo_hz: float = 3000.0
     hf_hi_hz: float = 8000.0
 
+    # SNR 归一化（第一段：越高越好）
     snr_min_db: float = -5.0
     snr_max_db: float = 10.0
+    # SNR 归一化（第二段：越高越差）
+    snr_min_db2: float = 20.0
+    snr_max_db2: float = 35.0
+    
+    # 高频能量比归一化（第一段：0->hf_ref 越高越好）
     hf_ref: float = 0.02
+    # 高频能量比归一化（第二段：hf_ref2_l->hf_ref2_h 越高越差）
+    hf_ref2_l: float = 0.02
+    hf_ref2_h: float = 0.06
+    
     flat_ref: float = 0.10
 
     w_snr: float = 0.50
@@ -109,7 +119,11 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
         hf_hi_hz=float(clarity_tbl.get("hf_hi_hz", ClarityV1Config.hf_hi_hz)),
         snr_min_db=float(clarity_tbl.get("snr_min_db", ClarityV1Config.snr_min_db)),
         snr_max_db=float(clarity_tbl.get("snr_max_db", ClarityV1Config.snr_max_db)),
+        snr_min_db2=float(clarity_tbl.get("snr_min_db2", ClarityV1Config.snr_min_db2)),
+        snr_max_db2=float(clarity_tbl.get("snr_max_db2", ClarityV1Config.snr_max_db2)),
         hf_ref=float(clarity_tbl.get("hf_ref", ClarityV1Config.hf_ref)),
+        hf_ref2_l=float(clarity_tbl.get("hf_ref2_l", ClarityV1Config.hf_ref2_l)),
+        hf_ref2_h=float(clarity_tbl.get("hf_ref2_h", ClarityV1Config.hf_ref2_h)),
         flat_ref=float(clarity_tbl.get("flat_ref", ClarityV1Config.flat_ref)),
         w_snr=float(clarity_tbl.get("w_snr", ClarityV1Config.w_snr)),
         w_hf=float(clarity_tbl.get("w_hf", ClarityV1Config.w_hf)),
@@ -151,8 +165,12 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
         raise ValueError("audio_qc.min_duration_ms must be <= audio_qc.max_duration_ms")
     if audio_cfg.clarity_v1.snr_max_db <= audio_cfg.clarity_v1.snr_min_db:
         raise ValueError("clarity_v1.snr_max_db must be > snr_min_db")
+    if audio_cfg.clarity_v1.snr_max_db2 <= audio_cfg.clarity_v1.snr_min_db2:
+        raise ValueError("clarity_v1.snr_max_db2 must be > snr_min_db2")
     if audio_cfg.clarity_v1.hf_ref <= 0:
         raise ValueError("clarity_v1.hf_ref must be > 0")
+    if audio_cfg.clarity_v1.hf_ref2_h <= audio_cfg.clarity_v1.hf_ref2_l:
+        raise ValueError("clarity_v1.hf_ref2_h must be > hf_ref2_l")
     if audio_cfg.clarity_v1.flat_ref <= 0:
         raise ValueError("clarity_v1.flat_ref must be > 0")
     if not (0 < audio_cfg.clipping.clip_threshold <= 1.0):
