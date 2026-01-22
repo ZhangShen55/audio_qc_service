@@ -10,6 +10,8 @@ import tomli as tomllib
 
 @dataclass(frozen=True)
 class ServerConfig:
+    # 服务版本号
+    version: str = "1.0.0"
     # 线程池：解码/特征/CPU 计算（异步接口会把重活丢到线程池）
     threadpool_workers: int = 8
     # GPU 推理并发（同一进程内，同一张卡建议 1~2）
@@ -102,6 +104,7 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
 
 
     server_cfg = ServerConfig(
+        version=str(server.get("version", ServerConfig.version)),
         threadpool_workers=int(server.get("threadpool_workers", ServerConfig.threadpool_workers)),
         gpu_infer_concurrency=int(server.get("gpu_infer_concurrency", ServerConfig.gpu_infer_concurrency)),
         log_level=str(server.get("log_level", ServerConfig.log_level)).upper(),

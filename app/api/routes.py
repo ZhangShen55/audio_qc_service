@@ -8,7 +8,7 @@ from fastapi import APIRouter, File, UploadFile, Request
 from starlette.responses import JSONResponse
 
 from core import status_codes
-from core.ids import new_request_id
+from core.ids import generate_request_id
 from core.response import ok, fail
 from core.logging import set_request_id
 
@@ -23,16 +23,24 @@ async def audio_qc(request: Request,
         file: Optional[UploadFile] = File(default=None),
         task_id: Optional[str] = None
         ):
-    request_id = new_request_id() if task_id is None else task_id
-    set_request_id(request_id)
-    logger.info(f"[/qc] 接受到音频质检请求. request_id={request_id}, filename={file.filename if file else 'None'}")
-
+    # 先检查文件是否存在
     if file is None or not file.filename:
-        logger.warning(f"[/qc] 缺失或者是空文件. request_id={request_id}")
-        return JSONResponse(status_code=200, content=fail(request_id, status_codes.MISSING_AUDIO))
+        # 文件不存在时使用默认ID
+        temp_id = "unknown"
+        logger.warning(f"[/qc] 缺失或者是空文件. filename=None")
+        return JSONResponse(status_code=200, content=fail(temp_id, status_codes.MISSING_AUDIO))
+
+    # 文件存在，生成或使用 request_id
+    request_id = task_id if task_id else generate_request_id(file.filename)
+    set_request_id(request_id)
+    logger.info(f"[/qc] 接受到音频质检请求. request_id={request_id}, filename={file.filename}")
 
     cfg = request.app.state.cfg
     service = request.app.state.service
+    stats = request.app.state.stats
+
+    # 标记任务开始处理
+    stats.add_processing(request_id)
 
     aqc_cfg = cfg.audio_qc
     max_bytes = aqc_cfg.max_file_size_mb * 1024 * 1024
@@ -53,6 +61,7 @@ async def audio_qc(request: Request,
                         total += len(chunk)
                         if total > max_bytes:
                             logger.warning(f"[/qc] 文件太大超过{aqc_cfg.max_file_size_mb}. request_id={request_id}, size={total}bytes, max={max_bytes}bytes")
+                            stats.finish_failed(request_id)
                             return JSONResponse(status_code=200, content=fail(request_id, status_codes.FILE_TOO_LARGE))
                         f.write(chunk)
             finally:
@@ -60,6 +69,7 @@ async def audio_qc(request: Request,
 
             if total <= 0:
                 logger.warning(f"[/qc] 文件缺失或空文件. request_id={request_id}")
+                stats.finish_failed(request_id)
                 return JSONResponse(status_code=200, content=fail(request_id, status_codes.MISSING_AUDIO))
 
             logger.info(f"[/qc] 文件加载成功. request_id={request_id}, size={total}bytes")
@@ -70,9 +80,11 @@ async def audio_qc(request: Request,
             if result.ok:
                 logger.info(f"[/qc] 检测完成. request_id={request_id}, status_code={result.status_code}")
                 logger.debug(f"[/qc] 结果数据: {result.data},request_id={request_id}")
+                stats.finish_success(request_id)
                 return JSONResponse(status_code=200, content=ok(request_id, result.data))
 
             logger.warning(f"[/qc] 检测处理失败. request_id={request_id}, status_code={result.status_code}")
+            stats.finish_failed(request_id)
             return JSONResponse(status_code=200, content=fail(request_id, result.status_code))
     finally:
         # 显式清理 UploadFile 的内部临时文件（Starlette SpooledTemporaryFile）
@@ -81,9 +93,9 @@ async def audio_qc(request: Request,
         try:
             if file is not None and hasattr(file, 'file') and file.file is not None:
                 file.file.close()  # 关闭 SpooledTemporaryFile 对象
-                logger.debug(f"[CLEANUP] UploadFile internal temp file closed. request_id={request_id}")
+                logger.debug(f"[CLEANUP] UploadFile内部临时文件已关闭. request_id={request_id}")
         except Exception as e:
-            logger.warning(f"[CLEANUP] Error closing UploadFile temp file: {str(e)}, request_id={request_id}")
+            logger.warning(f"[CLEANUP] 关闭UploadFile临时文件时出错: {str(e)}, request_id={request_id}")
 
 
 

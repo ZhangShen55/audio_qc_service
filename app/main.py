@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import load_config
 from core.logging import init_logging
+from core.stats import ServiceStats
 from infra.threadpool import create_threadpool
 from infra.gpu_gate import create_gpu_semaphore
 
@@ -15,6 +16,7 @@ from services.vad_engine import VadEngine
 from services.qc_service import AudioQCService
 
 from api.routes import router as api_router
+from api.health_router import router as health_router
 
 
 def create_app() -> FastAPI:
@@ -52,12 +54,14 @@ def create_app() -> FastAPI:
         await asyncio.to_thread(vad_engine.warmup)
 
         service = AudioQCService(cfg=cfg, vad_engine=vad_engine, gpu_sem=gpu_sem)
+        stats = ServiceStats()
 
         app.state.cfg = cfg
         app.state.executor = executor
         app.state.gpu_sem = gpu_sem
         app.state.vad_engine = vad_engine
         app.state.service = service
+        app.state.stats = stats
 
     @app.on_event("shutdown")
     async def on_shutdown() -> None:
@@ -70,6 +74,7 @@ def create_app() -> FastAPI:
         if vad_engine is not None:
             vad_engine.shutdown()
 
+    app.include_router(health_router)
     app.include_router(api_router)
     return app
 

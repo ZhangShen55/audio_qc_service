@@ -5,17 +5,19 @@
 # 4. 推理完成后依次处理排队请求
 
 [server]
+version = "1.0.0"
 log_level = "INFO"        # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
 threadpool_workers = 20   # cpu线程池
 gpu_infer_concurrency = 1 # gpu信号量 
 
 [audio_qc]
-vad_model = "iic/speech_fsmn_vad_zh-cn-16k-common-pytorch"
+#"iic/speech_fsmn_vad_zh-cn-16k-common-pytorch"
+vad_model = "/root/workspace/audio_qc_service/vad_model"
 device = "cuda:0"
 vad_num_workers = 1     # VAD 进程池，推荐与gpu_infer_concurrency相同
 return_segments = true  # 是否返回分段结果
 merge_gap_ms = 120
-silence_dbfs = -60.0
+silence_dbfs = -50.0
 max_file_size_mb = 300
 min_duration_ms = 10000      # 3min，按需改
 max_duration_ms = 6600000     # 110min，按需改
