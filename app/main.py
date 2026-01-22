@@ -42,7 +42,15 @@ def create_app() -> FastAPI:
 
         gpu_sem = create_gpu_semaphore(cfg)
 
-        vad_engine = VadEngine(model_id=cfg.audio_qc.vad_model, device=cfg.audio_qc.device)
+        vad_engine = VadEngine(
+            model_id=cfg.audio_qc.vad_model,
+            device=cfg.audio_qc.device,
+            num_workers=cfg.audio_qc.vad_num_workers,
+        )
+
+        # 热加载 VAD 模型到所有 worker 进程
+        await asyncio.to_thread(vad_engine.warmup)
+
         service = AudioQCService(cfg=cfg, vad_engine=vad_engine, gpu_sem=gpu_sem)
 
         app.state.cfg = cfg
@@ -56,6 +64,11 @@ def create_app() -> FastAPI:
         executor = getattr(app.state, "executor", None)
         if executor is not None:
             executor.shutdown(wait=False, cancel_futures=True)
+
+        # 清理 VAD 进程池
+        vad_engine = getattr(app.state, "vad_engine", None)
+        if vad_engine is not None:
+            vad_engine.shutdown()
 
     app.include_router(api_router)
     return app

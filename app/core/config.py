@@ -38,6 +38,7 @@ class AudioQCConfig:
     # VAD
     vad_model: str = "iic/speech_fsmn_vad_zh-cn-16k-common-pytorch"
     device: str = "cuda:0"  # 或 "cpu"
+    vad_num_workers: int = 2  # VAD 推理进程池大小（建议 1-4）
 
     # 输出
     return_segments: bool = True
@@ -102,6 +103,7 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
     audio_cfg = AudioQCConfig(
         vad_model=str(audio.get("vad_model", AudioQCConfig.vad_model)),
         device=str(audio.get("device", AudioQCConfig.device)),
+        vad_num_workers=int(audio.get("vad_num_workers", AudioQCConfig.vad_num_workers)),
         return_segments=bool(audio.get("return_segments", AudioQCConfig.return_segments)),
         merge_gap_ms=int(audio.get("merge_gap_ms", AudioQCConfig.merge_gap_ms)),
         silence_dbfs=float(audio.get("silence_dbfs", AudioQCConfig.silence_dbfs)),
@@ -117,6 +119,8 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
         raise ValueError("server.threadpool_workers must be > 0")
     if server_cfg.gpu_infer_concurrency <= 0:
         raise ValueError("server.gpu_infer_concurrency must be > 0")
+    if audio_cfg.vad_num_workers <= 0:
+        raise ValueError("audio_qc.vad_num_workers must be > 0")
     valid_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
     if server_cfg.log_level not in valid_log_levels:
         raise ValueError(f"server.log_level must be one of {valid_log_levels}, got {server_cfg.log_level}")

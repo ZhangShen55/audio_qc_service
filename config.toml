@@ -1,22 +1,19 @@
 [server]
-threadpool_workers = 8
-gpu_infer_concurrency = 1
-log_level = "ERROR"           # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
+threadpool_workers = 20   # cpu线程池
+gpu_infer_concurrency = 4 # gpu信号量 
+log_level = "INFO"        # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 [audio_qc]
 vad_model = "iic/speech_fsmn_vad_zh-cn-16k-common-pytorch"
 device = "cuda:0"
-
-return_segments = true
-merge_gap_ms = 120
-silence_dbfs = -60.0
-
+vad_num_workers = 4     # VAD 进程池，推荐与gpu_infer_concurrency相同
+return_segments = true  # 是否返回分段结果
+merge_gap_ms = 120      
+silence_dbfs = -60.0   
 max_file_size_mb = 300
 min_duration_ms = 10000      # 3min，按需改
 max_duration_ms = 6600000     # 110min，按需改
-
-need_clarity = true
-
+need_clarity = true  # 是否需要清晰度检测
 
 [audio_qc.clarity_v1]
 # STFT 参数
