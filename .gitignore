@@ -18,4 +18,3 @@ __pycache__/
 .claude
 vad_model/example/
 vad_model/fig/
-vad_model/*.pt
