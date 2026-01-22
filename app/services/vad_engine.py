@@ -61,10 +61,10 @@ class VadEngine:
         使用一个虚拟音频进行推理以加载模型到 GPU。
         """
         if self._warmup_done:
-            logger.debug("[VAD] Warmup already done, skipping")
+            logger.debug("[VAD] 热加载已完成，跳过")
             return
 
-        logger.info(f"[VAD] Starting warmup with {self.num_workers} workers...")
+        logger.info(f"[VAD] 开始热加载，使用{self.num_workers}个worker进程...")
 
         # 生成虚拟 16k mono wav（100ms，用于快速推理）
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
@@ -95,12 +95,12 @@ class VadEngine:
                 for i, future in enumerate(futures):
                     try:
                         future.result(timeout=300)
-                        logger.debug(f"[VAD] Worker {i+1} warmup completed")
+                        logger.debug(f"[VAD] Worker {i+1} 热加载完成")
                     except Exception as e:
-                        logger.error(f"[VAD] Worker {i+1} warmup failed: {e}")
+                        logger.error(f"[VAD] Worker {i+1} 热加载失败: {e}")
                         raise
 
-                logger.info(f"[VAD] All {self.num_workers} workers warmed up successfully")
+                logger.info(f"[VAD] 所有{self.num_workers}个worker进程热加载成功")
                 self._warmup_done = True
             finally:
                 # 清理虚拟文件
