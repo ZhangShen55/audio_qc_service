@@ -16,6 +16,6 @@ __pycache__/
 *.egg-info/
 .DS_Store
 .claude
-vad_model/example
-vad_model/fig
+vad_model/example/
+vad_model/fig/
 vad_model/*.pt
