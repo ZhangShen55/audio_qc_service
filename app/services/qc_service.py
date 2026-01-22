@@ -17,7 +17,7 @@ from services.audio_io import read_wav_mono_float32, validate_audio_array, Audio
 from services.vad_engine import VadEngine, VadInferError
 from services.metrics.vad_utils import merge_segments_ms, speech_ms_from_segments, clamp01
 from services.metrics.silence import is_silent_by_frames
-from services.metrics.clipping import count_clipping_events
+from services.metrics.clipping import detect_clipping_events
 from services.metrics.clarity_v1 import compute_clarity_v1
 
 logger = logging.getLogger(__name__)
@@ -148,14 +148,15 @@ class AudioQCService:
             has_speech = speech_ms >= 300
             logger.debug(f"[qc_service] Speech detection result. has_speech={has_speech}")
 
-            # 爆音次数
+            # 爆音检测
             logger.debug(f"[qc_service] Computing clipping events. clip_threshold={aqc.clipping.clip_threshold}, min_event_samples={aqc.clipping.min_event_samples}")
-            clip_count = count_clipping_events(
+            clip_result = detect_clipping_events(
                 audio.wav,
+                audio.sample_rate,
                 clip_threshold=aqc.clipping.clip_threshold,
                 min_event_samples=aqc.clipping.min_event_samples,
             )
-            logger.debug(f"[qc_service] Clipping detection completed. clip_count={clip_count}")
+            logger.debug(f"[qc_service] Clipping detection completed. clip_count={clip_result.count}, times_count={len(clip_result.times_ms)}")
 
             # 清晰度（V1规则版）
             if aqc.need_clarity:
@@ -177,12 +178,20 @@ class AudioQCService:
                 clarity = None
                 clarity_detail = None
 
+            # 组装爆音结果
+            has_clip = clip_result.count > 0
+            clip_detail = {
+                "clip_count": int(clip_result.count),
+                "times": clip_result.times_ms,
+            } if has_clip else None
+
             # 组装 data（符合你给的结构 + 你采纳的工程建议）
             data = {
                 "is_silent": bool(silent),
                 "has_speech": bool(has_speech),
                 "speech_ratio": float(speech_ratio),
-                "clip_count": int(clip_count),
+                "has_clip": bool(has_clip),
+                "clip_detail": clip_detail,         # has_clip=false 时为 null
                 "clarity": clarity,                 # need_clarity=false 时为 null
                 "clarity_detail": clarity_detail,   # need_clarity=false 时为 null
                 "vad": {
