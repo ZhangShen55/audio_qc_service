@@ -1,19 +1,30 @@
+# 并发流程（以 40 请求 + 4 进程为例）：
+# 1. 请求 1-40 并行执行 FFmpeg 解码（20 个线程）
+# 2. 请求 1-4 获得 GPU 信号量 → 提交到 VAD 进程 1-4 并行推理
+# 3. 请求 5-40 排队等待信号量
+# 4. 推理完成后依次处理排队请求
+
 [server]
+log_level = "INFO"        # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
 threadpool_workers = 20   # cpu线程池
 gpu_infer_concurrency = 4 # gpu信号量 
-log_level = "INFO"        # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 [audio_qc]
 vad_model = "iic/speech_fsmn_vad_zh-cn-16k-common-pytorch"
 device = "cuda:0"
 vad_num_workers = 4     # VAD 进程池，推荐与gpu_infer_concurrency相同
 return_segments = true  # 是否返回分段结果
-merge_gap_ms = 120      
-silence_dbfs = -60.0   
+merge_gap_ms = 120
+silence_dbfs = -60.0
 max_file_size_mb = 300
 min_duration_ms = 10000      # 3min，按需改
 max_duration_ms = 6600000     # 110min，按需改
 need_clarity = true  # 是否需要清晰度检测
+
+[audio_qc.clipping]
+# 削波检测参数
+clip_threshold = 0.5        # 削波阈值 (0-1)，越接近1检测爆点的条件越严格
+min_event_samples = 10       # 最小事件长度（样本数），16kHz时10≈0.625ms
 
 [audio_qc.clarity_v1]
 # STFT 参数

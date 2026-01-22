@@ -149,8 +149,12 @@ class AudioQCService:
             logger.debug(f"[qc_service] Speech detection result. has_speech={has_speech}")
 
             # 爆音次数
-            logger.debug(f"[qc_service] Computing clipping events")
-            clip_count = count_clipping_events(audio.wav)
+            logger.debug(f"[qc_service] Computing clipping events. clip_threshold={aqc.clipping.clip_threshold}, min_event_samples={aqc.clipping.min_event_samples}")
+            clip_count = count_clipping_events(
+                audio.wav,
+                clip_threshold=aqc.clipping.clip_threshold,
+                min_event_samples=aqc.clipping.min_event_samples,
+            )
             logger.debug(f"[qc_service] Clipping detection completed. clip_count={clip_count}")
 
             # 清晰度（V1规则版）

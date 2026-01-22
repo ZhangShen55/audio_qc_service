@@ -34,6 +34,12 @@ class ClarityV1Config:
     w_flat: float = 0.20
 
 @dataclass(frozen=True)
+class ClippingConfig:
+    """削波检测参数"""
+    clip_threshold: float = 0.99      # 削波阈值（0-1）
+    min_event_samples: int = 10       # 最小事件长度（样本数）
+
+@dataclass(frozen=True)
 class AudioQCConfig:
     # VAD
     vad_model: str = "iic/speech_fsmn_vad_zh-cn-16k-common-pytorch"
@@ -47,10 +53,14 @@ class AudioQCConfig:
     # 静音阈值
     silence_dbfs: float = -60.0
 
+    # 削波检测
+    clipping: ClippingConfig = ClippingConfig()
+
     # 服务保护
     max_file_size_mb: int = 300
     min_duration_ms: int = 180000      # 3min 默认
     max_duration_ms: int = 3300000     # 55min 默认
+
     # 清晰度是否开启
     need_clarity: bool = True
     clarity_v1: ClarityV1Config = ClarityV1Config()
@@ -78,12 +88,18 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
     server = _get_table(raw, "server")
     audio = _get_table(raw, "audio_qc")
     clarity_tbl = _get_table(audio, "clarity_v1") if isinstance(audio, dict) else {}
+    clipping_tbl = _get_table(audio, "clipping") if isinstance(audio, dict) else {}
 
 
     server_cfg = ServerConfig(
         threadpool_workers=int(server.get("threadpool_workers", ServerConfig.threadpool_workers)),
         gpu_infer_concurrency=int(server.get("gpu_infer_concurrency", ServerConfig.gpu_infer_concurrency)),
         log_level=str(server.get("log_level", ServerConfig.log_level)).upper(),
+    )
+
+    clipping_cfg = ClippingConfig(
+        clip_threshold=float(clipping_tbl.get("clip_threshold", ClippingConfig.clip_threshold)),
+        min_event_samples=int(clipping_tbl.get("min_event_samples", ClippingConfig.min_event_samples)),
     )
 
     clarity_cfg = ClarityV1Config(
@@ -110,6 +126,7 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
         max_file_size_mb=int(audio.get("max_file_size_mb", AudioQCConfig.max_file_size_mb)),
         min_duration_ms=int(audio.get("min_duration_ms", AudioQCConfig.min_duration_ms)),
         max_duration_ms=int(audio.get("max_duration_ms", AudioQCConfig.max_duration_ms)),
+        clipping=clipping_cfg,
         need_clarity=bool(audio.get("need_clarity", AudioQCConfig.need_clarity)),
         clarity_v1=clarity_cfg
     )
@@ -138,6 +155,10 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
         raise ValueError("clarity_v1.hf_ref must be > 0")
     if audio_cfg.clarity_v1.flat_ref <= 0:
         raise ValueError("clarity_v1.flat_ref must be > 0")
+    if not (0 < audio_cfg.clipping.clip_threshold <= 1.0):
+        raise ValueError("clipping.clip_threshold must be in (0, 1]")
+    if audio_cfg.clipping.min_event_samples <= 0:
+        raise ValueError("clipping.min_event_samples must be > 0")
 
     return AppConfig(server=server_cfg, audio_qc=audio_cfg)
 
