@@ -82,7 +82,12 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
+# start server
+# conda activate asr
+# cd workspace/audio_qc_service/
 # uvicorn main:app --app-dir app --host 0.0.0.0 --port 8090 --reload
 # 后台挂起
 # nohup uvicorn main:app --app-dir app --host 0.0.0.0 --port 8090 > uvicorn.log 2>&1 &
+
+# kill server
 # sudo ss -lntp | grep ':8090'
