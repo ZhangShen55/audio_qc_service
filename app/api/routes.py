@@ -14,7 +14,7 @@ from core.logging import set_request_id
 
 from infra.tempfiles import TempDir, safe_filename
 
-router = APIRouter(prefix="/v1/audio", tags=["audio_qc"])
+router = APIRouter(prefix="/audio", tags=["audio_qc"])
 logger = logging.getLogger(__name__)
 
 
@@ -93,9 +93,9 @@ async def audio_qc(request: Request,
         try:
             if file is not None and hasattr(file, 'file') and file.file is not None:
                 file.file.close()  # 关闭 SpooledTemporaryFile 对象
-                logger.debug(f"[CLEANUP] UploadFile内部临时文件已关闭. request_id={request_id}")
+                logger.debug(f"[/qc] UploadFile内部临时文件已关闭. request_id={request_id}")
         except Exception as e:
-            logger.warning(f"[CLEANUP] 关闭UploadFile临时文件时出错: {str(e)}, request_id={request_id}")
+            logger.warning(f"[/qc] 关闭UploadFile临时文件时出错: {str(e)}, request_id={request_id}")
 
 
 
