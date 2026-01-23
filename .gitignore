@@ -5,6 +5,7 @@ __pycache__/
 *.log
 *.json
 *.txt
+*.toml
 .env
 *.md~
 *.swp
