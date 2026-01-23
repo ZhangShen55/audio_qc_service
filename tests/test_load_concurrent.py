@@ -2,7 +2,7 @@
 并发压测脚本：测试多个请求同时到达时的 GPU 并发处理能力。
 
 使用方法：
-    python tests/test_load_concurrent.py --concurrency 20 --file /root/workspace/audio_qc_service/scripts/test_audio/传播学_1124501_马道全_2025年4月24号8时30分.aac
+    python tests/test_load_concurrent.py --concurrency 50 --file /root/workspace/audio_qc_service/scripts/test_audio/5min.wav
     python tests/test_load_concurrent.py --concurrency 10 --file /path/to/audio.wav --iterations 2
 
 可配置参数：
@@ -34,7 +34,7 @@ async def send_request(
 
     try:
         with open(file_path, "rb") as f:
-            files = {"file": ("audio.wav", f, "audio/wav")}
+            files = {"audio_file": ("audio.wav", f, "audio/wav")}
             response = await client.post(
                 url,
                 files=files,
@@ -85,7 +85,7 @@ async def run_concurrent_test(
         "details": [...]
     }
     """
-    url = f"{base_url}/v1/audio/qc"
+    url = f"{base_url}/audio/qc"
 
     if not Path(file_path).exists():
         raise FileNotFoundError(f"文件不存在: {file_path}")
