@@ -34,12 +34,44 @@ uvicorn main:app --app-dir app --host 0.0.0.0 --port 8090
 
 ### API 端点
 
-**POST `/v1/audio/qc`**
+#### 1. 健康检查
+
+**GET `/v1/audio/health`**
 
 请求：
 ```bash
+curl http://localhost:8090/v1/audio/health
+```
+
+响应：
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "total_requests": 1250,
+  "success_count": 1180,
+  "failed_count": 70,
+  "processing_count": 5
+}
+```
+
+#### 2. 音频质检
+
+**POST `/v1/audio/qc`**
+
+请求参数：
+- `audio_file` (file, required): 音频文件（支持 mp3/wav/aac/m4a 等格式）
+- `task_id` (string, optional): 自定义任务 ID，不传则自动生成
+
+请求示例：
+```bash
 curl -X POST http://localhost:8090/v1/audio/qc \
-  -F "file=@audio.mp3"
+  -F "audio_file=@audio.mp3"
+
+# 带自定义 task_id
+curl -X POST http://localhost:8090/v1/audio/qc \
+  -F "audio_file=@audio.mp3" \
+  -F "task_id=my_custom_id_123"
 ```
 
 成功响应（status_code=200）：
@@ -54,7 +86,7 @@ curl -X POST http://localhost:8090/v1/audio/qc \
     "has_clip": true,
     "clip_detail": {
       "clip_count": 10,
-      "times": [100, 500, 1200, 2000, 3500, 4100, 5200, 6000, 7300, 8500]
+      "times_ms": [100, 500, 1200, 2000, 3500, 4100, 5200, 6000, 7300, 8500]
     },
     "clarity": 90.6276,
     "clarity_detail": {
@@ -131,4 +163,64 @@ file_enabled = true            # 文件输出
 file_max_bytes = 10485760      # 日志文件大小（10MB）
 file_backup_count = 5          # 保留备份文件数
 ```
+
+## API 文档
+
+### 错误码说明
+
+| 错误码 | 错误说明 | 分类 |
+|--------|---------|------|
+| 200 | 成功 | 成功 |
+| 1001 | 缺少音频文件或文件为空 | 输入类错误 |
+| 1002 | 音频时长超出范围 | 输入类错误 |
+| 1003 | 文件大小超过限制 | 输入类错误 |
+| 2001 | FFmpeg 解码失败 | 解码类错误 |
+| 2002 | 重采样失败 | 解码类错误 |
+| 2003 | 音频数据异常 | 解码类错误 |
+| 3001 | VAD 推理失败 | 处理类错误 |
+
+### 响应参数说明
+
+#### 顶层响应结构
+
+| 参数名 | 类型 | 说明 |
+|--------|------|------|
+| request_id | string | 请求唯一标识（UUID 或自定义 task_id） |
+| status_code | int | 业务状态码（200=成功，其他=失败） |
+| data | object | 业务数据（成功时有值，失败时为空对象 `{}`） |
+
+#### data 对象（status_code=200 时）
+
+| 参数名 | 类型 | 说明 |
+|--------|------|------|
+| is_silent | boolean | 是否为静音音频 |
+| has_speech | boolean | 是否包含人声 |
+| speech_ratio | float | 人声占比（0.0 ~ 1.0） |
+| has_clip | boolean | 是否检测到削波 |
+| clip_detail | object \| null | 削波详情（has_clip=false 时为 null） |
+| clarity | float \| null | 清晰度分数（0 ~ 100） |
+| clarity_detail | object \| null | 清晰度详情 |
+| vad | object | VAD 分段结果 |
+
+#### clip_detail 对象
+
+| 参数名 | 类型 | 说明 |
+|--------|------|------|
+| clip_count | int | 削波事件总数 |
+| times_ms | array[int] | 削波时间点列表（毫秒） |
+
+#### clarity_detail 对象
+
+| 参数名 | 类型 | 说明 |
+|--------|------|------|
+| snr_db | float | 信噪比（dB） |
+| hf_ratio | float | 高频能量占比 |
+| spectral_flatness | float | 谱平坦度 |
+
+#### vad 对象
+
+| 参数名 | 类型 | 说明 |
+|--------|------|------|
+| segments_ms | array[array[int]] | VAD 分段列表 `[[start, end], ...]` |
+| speech_ms | int | 总人声时长（毫秒） |
 
