@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 import logging
 
-from fastapi import APIRouter, File, UploadFile, Request
+from fastapi import APIRouter, File, UploadFile, Request, Form
 from starlette.responses import JSONResponse
 
 from core import status_codes
@@ -20,20 +20,20 @@ logger = logging.getLogger(__name__)
 
 @router.post("/qc")
 async def audio_qc(request: Request,
-        file: Optional[UploadFile] = File(default=None),
-        task_id: Optional[str] = None
+        audio_file: Optional[UploadFile] = File(default=None),
+        task_id: Optional[str] = Form(default=None),
         ):
     # 先检查文件是否存在
-    if file is None or not file.filename:
+    if audio_file is None or not audio_file.filename:
         # 文件不存在时使用默认ID
         temp_id = "unknown"
         logger.warning(f"[/qc] 缺失或者是空文件. filename=None")
         return JSONResponse(status_code=200, content=fail(temp_id, status_codes.MISSING_AUDIO))
 
     # 文件存在，生成或使用 request_id
-    request_id = task_id if task_id else generate_request_id(file.filename)
+    request_id = task_id if task_id else generate_request_id(audio_file.filename)
     set_request_id(request_id)
-    logger.info(f"[/qc] 接受到音频质检请求. request_id={request_id}, filename={file.filename}")
+    logger.info(f"[/qc] 接受到音频质检请求. request_id={request_id}, filename={audio_file.filename}")
 
     cfg = request.app.state.cfg
     service = request.app.state.service
@@ -48,14 +48,14 @@ async def audio_qc(request: Request,
     total = 0
     try:
         with TempDir(prefix="aqc_req_") as td:
-            upload_name = safe_filename(file.filename)
+            upload_name = safe_filename(audio_file.filename)
             src_path = td.path / upload_name
             logger.info(f"[/qc] 保存文件到临时文件. request_id={request_id}, temp_path={src_path}")
 
             try:
                 with open(src_path, "wb") as f:
                     while True:
-                        chunk = await file.read(1024 * 1024)  # 1MB
+                        chunk = await audio_file.read(1024 * 1024)  # 1MB
                         if not chunk:
                             break
                         total += len(chunk)
@@ -65,7 +65,7 @@ async def audio_qc(request: Request,
                             return JSONResponse(status_code=200, content=fail(request_id, status_codes.FILE_TOO_LARGE))
                         f.write(chunk)
             finally:
-                await file.close()
+                await audio_file.close()
 
             if total <= 0:
                 logger.warning(f"[/qc] 文件缺失或空文件. request_id={request_id}")
@@ -91,8 +91,8 @@ async def audio_qc(request: Request,
         # 当文件 > 1MB 时，Starlette 会在 /tmp 中创建临时文件
         # 不显式删除会导致 /tmp 空间泄漏
         try:
-            if file is not None and hasattr(file, 'file') and file.file is not None:
-                file.file.close()  # 关闭 SpooledTemporaryFile 对象
+            if audio_file is not None and hasattr(audio_file, 'file') and audio_file.file is not None:
+                audio_file.file.close()  # 关闭 SpooledTemporaryFile 对象
                 logger.debug(f"[/qc] UploadFile内部临时文件已关闭. request_id={request_id}")
         except Exception as e:
             logger.warning(f"[/qc] 关闭UploadFile临时文件时出错: {str(e)}, request_id={request_id}")

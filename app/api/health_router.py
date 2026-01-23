@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from starlette.responses import JSONResponse
 
-router = APIRouter(prefix="/v1", tags=["health"])
+router = APIRouter(prefix="/audio", tags=["health"])
 
 
 @router.get("/health")

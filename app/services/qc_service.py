@@ -182,10 +182,10 @@ class AudioQCService:
             has_clip = clip_result.count > 0
             clip_detail = {
                 "clip_count": int(clip_result.count),
-                "times": clip_result.times_ms,
+                "times_ms": clip_result.times_ms,
             } if has_clip else None
 
-            # 组装 data（符合你给的结构 + 你采纳的工程建议）
+            # 组装 data
             data = {
                 "is_silent": bool(silent),
                 "has_speech": bool(has_speech),
