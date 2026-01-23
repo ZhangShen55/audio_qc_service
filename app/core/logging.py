@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import logging
 import sys
+import glob
 from contextvars import ContextVar
 from pathlib import Path
+from logging.handlers import TimedRotatingFileHandler
+from datetime import datetime, timedelta
 
 _request_id_ctx: ContextVar[str] = ContextVar("request_id", default="-")
 
@@ -42,13 +45,39 @@ def init_logging(level: str = "INFO", log_dir: str | Path = "logs") -> None:
     console_handler.addFilter(request_filter)
     root.addHandler(console_handler)
 
-    # 文件输出
+    # 文件输出（按日期轮转，保留7天）
     log_dir_path = Path(log_dir)
     log_dir_path.mkdir(parents=True, exist_ok=True)
     log_file = log_dir_path / "app.log"
 
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    # 使用 TimedRotatingFileHandler，每天午夜轮转
+    file_handler = TimedRotatingFileHandler(
+        filename=str(log_file),
+        when='midnight',
+        interval=1,
+        backupCount=7,
+        encoding='utf-8'
+    )
+    # 设置日志文件名后缀格式：app.log.YYYY-MM-DD
+    file_handler.suffix = "%Y-%m-%d"
     file_handler.setFormatter(formatter)
     file_handler.addFilter(request_filter)
     root.addHandler(file_handler)
+    
+    # 清理超过7天的旧日志文件
+    _cleanup_old_logs(log_dir_path, days=7)
+
+
+def _cleanup_old_logs(log_dir: Path, days: int = 7) -> None:
+    """清理超过指定天数的旧日志文件"""
+    try:
+        cutoff_time = datetime.now() - timedelta(days=days)
+        pattern = str(log_dir / "app.log.*")
+        
+        for log_file in glob.glob(pattern):
+            log_path = Path(log_file)
+            if log_path.stat().st_mtime < cutoff_time.timestamp():
+                log_path.unlink()
+    except Exception:
+        pass  # 忽略清理错误，不影响日志功能
 
