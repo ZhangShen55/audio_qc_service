@@ -85,3 +85,4 @@ app = create_app()
 # uvicorn main:app --app-dir app --host 0.0.0.0 --port 8090 --reload
 # 后台挂起
 # nohup uvicorn main:app --app-dir app --host 0.0.0.0 --port 8090 > uvicorn.log 2>&1 &
+# sudo ss -lntp | grep ':8090'
