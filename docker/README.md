@@ -163,6 +163,14 @@ device = "cuda:0"
 
 如果配置仍是 `device = "cpu"`，容器即使带 CUDA runtime，也会按 CPU 路径运行。
 
+如果不想修改仓库内的 `config.toml`，可以准备一个外部 CUDA 配置文件并在运行或验证时挂载：
+
+```bash
+GPU=1 \
+CONFIG_FILE=/absolute/path/to/config.cuda.toml \
+docker/run.sh jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64
+```
+
 GPU 容器运行示例：
 
 ```bash
@@ -187,6 +195,27 @@ http://127.0.0.1:8090
 PORT=18090 docker/run.sh jy-algorithm-app-audio-qc:v1.0.0
 ```
 
+挂载外部配置文件：
+
+```bash
+CONFIG_FILE=/absolute/path/to/config.toml \
+docker/run.sh jy-algorithm-app-audio-qc:v1.0.0
+```
+
+`CONFIG_FILE` 会以只读方式挂载到容器内：
+
+```text
+/srv/app/config.toml
+```
+
+如果需要同时改端口：
+
+```bash
+PORT=18090 \
+CONFIG_FILE=/absolute/path/to/config.toml \
+docker/run.sh jy-algorithm-app-audio-qc:v1.0.0
+```
+
 ## 验证
 
 ```bash
@@ -204,6 +233,13 @@ docker/verify.sh jy-algorithm-app-audio-qc:v1.0.0
 ```bash
 docker run --rm jy-algorithm-app-audio-qc:v1.0.0 \
   python -c 'import json; print(json.load(open("/srv/app/obfuscation-manifest.json")))'
+```
+
+使用外部配置文件验证：
+
+```bash
+CONFIG_FILE=/absolute/path/to/config.toml \
+docker/verify.sh jy-algorithm-app-audio-qc:v1.0.0
 ```
 
 ## 清理

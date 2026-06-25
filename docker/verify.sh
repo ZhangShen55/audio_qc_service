@@ -5,6 +5,7 @@ IMAGE_TAG="${1:-jy-algorithm-app-audio-qc:v1.0.0}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONTAINER_NAME="${CONTAINER_NAME:-audio-qc-obfuscated-verify}"
 PORT="${PORT:-18090}"
+CONFIG_FILE="${CONFIG_FILE:-}"
 BASE_URL="http://127.0.0.1:${PORT}"
 TMP_DIR="$(mktemp -d)"
 
@@ -14,7 +15,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-CONTAINER_NAME="${CONTAINER_NAME}" PORT="${PORT}" "${ROOT_DIR}/docker/run.sh" "${IMAGE_TAG}" >/dev/null
+CONTAINER_NAME="${CONTAINER_NAME}" PORT="${PORT}" CONFIG_FILE="${CONFIG_FILE}" "${ROOT_DIR}/docker/run.sh" "${IMAGE_TAG}" >/dev/null
 
 for _ in $(seq 1 90); do
   if curl -fsS "${BASE_URL}/audio/health" >/dev/null 2>&1; then

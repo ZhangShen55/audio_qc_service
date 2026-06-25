@@ -50,6 +50,25 @@ def test_build_script_supports_amd64_cuda_overrides():
     assert '--build-arg "INSTALL_RUNTIME_PYTHON=${INSTALL_RUNTIME_PYTHON}"' in build_script
 
 
+def test_run_script_supports_readonly_config_mount():
+    run_script = (Path(__file__).resolve().parents[1] / "docker" / "run.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'CONFIG_FILE="${CONFIG_FILE:-}"' in run_script
+    assert "配置文件不存在" in run_script
+    assert '"/srv/app/config.toml:ro"' in run_script
+
+
+def test_verify_script_passes_config_file_to_run_script():
+    verify_script = (Path(__file__).resolve().parents[1] / "docker" / "verify.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'CONFIG_FILE="${CONFIG_FILE:-}"' in verify_script
+    assert 'CONFIG_FILE="${CONFIG_FILE}"' in verify_script
+
+
 def test_generated_module_names_are_short_lowercase_and_stable():
     helper = load_prepare_module()
     used: set[str] = set()
