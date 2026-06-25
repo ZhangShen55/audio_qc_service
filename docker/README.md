@@ -112,6 +112,7 @@ CPU 默认参数：
 
 ```bash
 TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+PYPI_INDEX_URL=https://pypi.org/simple
 TORCH_VERSION=2.7.0+cpu
 TORCHAUDIO_VERSION=2.7.0
 ```
@@ -136,6 +137,7 @@ DOCKER_PLATFORM=linux/amd64 \
 RUNTIME_IMAGE=nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04 \
 INSTALL_RUNTIME_PYTHON=1 \
 TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128 \
+PYPI_INDEX_URL=https://pypi.org/simple \
 TORCH_VERSION=2.7.0+cu128 \
 TORCHAUDIO_VERSION=2.7.0+cu128 \
 IMAGE_VERSION=v1.0.0-cuda-amd64 \
@@ -149,8 +151,42 @@ docker/build.sh
 - `RUNTIME_IMAGE=nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04`：运行阶段使用 NVIDIA CUDA 12.8 + cuDNN runtime。
 - `INSTALL_RUNTIME_PYTHON=1`：NVIDIA CUDA runtime 镜像默认不是 Python 镜像，需要安装 Python 3 和 pip。
 - `TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128`：安装 CUDA 12.8 对应的 PyTorch wheel。
+- `PYPI_INDEX_URL=https://pypi.org/simple`：安装 FastAPI、FunASR、python-multipart 等普通 PyPI 依赖的源。如果服务器不能直连 PyPI，可换成可用的内网源或国内镜像源。
 - `IMAGE_VERSION=v1.0.0-cuda-amd64`：建议给 CUDA/x86 镜像单独 tag，避免覆盖 CPU 镜像。
 - `GPU=1`：构建后的验证容器会使用 `--gpus all`。只有在带 NVIDIA GPU 和 NVIDIA container runtime 的 Linux 机器上才能这样验证。
+
+## 使用已有 PyTorch CUDA 镜像
+
+如果 x86 CUDA 服务器上已经有如下镜像：
+
+```bash
+pytorch/pytorch:2.6.0-cuda11.8-cudnn9-runtime
+```
+
+可以直接把它作为运行阶段基础镜像：
+
+```bash
+DOCKER_PLATFORM=linux/amd64 \
+PYTHON_IMAGE=python:3.11-slim \
+RUNTIME_IMAGE=pytorch/pytorch:2.6.0-cuda11.8-cudnn9-runtime \
+INSTALL_RUNTIME_PYTHON=0 \
+TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118 \
+PYPI_INDEX_URL=https://pypi.org/simple \
+TORCH_VERSION=2.6.0+cu118 \
+TORCHAUDIO_VERSION=2.6.0+cu118 \
+IMAGE_VERSION=v1.0.0-cuda118-amd64 \
+GPU=1 \
+CONFIG_FILE=/absolute/path/to/config.cuda.toml \
+docker/build.sh
+```
+
+这里 `PYTHON_IMAGE=python:3.11-slim` 很重要：该 PyTorch 镜像使用 Python 3.11，PyArmor 构建阶段也应使用 Python 3.11，避免混淆运行时和最终运行环境的 Python ABI 不一致。
+
+如果服务器访问 `https://pypi.org/simple` 不稳定，可改为公司内网 PyPI 源或国内镜像，例如：
+
+```bash
+PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+```
 
 如果是在 Apple Silicon Mac 上构建，`DOCKER_PLATFORM=linux/amd64` 会走跨架构构建，速度会明显变慢，而且无法真实验证 CUDA/GPU 推理。建议在目标 x86 Linux GPU 机器或 CI runner 上执行上面的构建命令。
 

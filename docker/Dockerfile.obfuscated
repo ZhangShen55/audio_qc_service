@@ -55,16 +55,17 @@ RUN apt-get update \
 COPY --from=obfuscator /work/build/context/requirements-runtime.txt /tmp/requirements-runtime.txt
 
 ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+ARG PYPI_INDEX_URL=https://pypi.org/simple
 ARG TORCH_VERSION=2.7.0+cpu
 ARG TORCHAUDIO_VERSION=2.7.0
 
 RUN pip install --no-cache-dir -U pip \
     && pip install --no-cache-dir \
         --index-url "${TORCH_INDEX_URL}" \
-        --extra-index-url https://pypi.org/simple \
+        --extra-index-url "${PYPI_INDEX_URL}" \
         "torch==${TORCH_VERSION}" \
         "torchaudio==${TORCHAUDIO_VERSION}" \
-    && pip install --no-cache-dir -r /tmp/requirements-runtime.txt
+    && pip install --no-cache-dir --index-url "${PYPI_INDEX_URL}" -r /tmp/requirements-runtime.txt
 
 COPY --from=obfuscator /work/build/context/app /srv/app/app
 COPY --from=obfuscator /work/build/context/config.toml /srv/app/config.toml

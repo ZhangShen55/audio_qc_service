@@ -8,6 +8,7 @@ FINAL_TAG="${IMAGE_NAME}:${IMAGE_VERSION}"
 TEMP_TAG="${IMAGE_NAME}:build-${IMAGE_VERSION}-$(date +%Y%m%d%H%M%S)"
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/docker/.build}"
 TORCH_INDEX_URL="${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}"
+PYPI_INDEX_URL="${PYPI_INDEX_URL:-https://pypi.org/simple}"
 TORCH_VERSION="${TORCH_VERSION:-2.7.0+cpu}"
 TORCHAUDIO_VERSION="${TORCHAUDIO_VERSION:-2.7.0}"
 PYTHON_IMAGE="${PYTHON_IMAGE:-python:3.10-slim}"
@@ -43,6 +44,7 @@ docker build \
   --build-arg "RUNTIME_IMAGE=${RUNTIME_IMAGE}" \
   --build-arg "INSTALL_RUNTIME_PYTHON=${INSTALL_RUNTIME_PYTHON}" \
   --build-arg "TORCH_INDEX_URL=${TORCH_INDEX_URL}" \
+  --build-arg "PYPI_INDEX_URL=${PYPI_INDEX_URL}" \
   --build-arg "TORCH_VERSION=${TORCH_VERSION}" \
   --build-arg "TORCHAUDIO_VERSION=${TORCHAUDIO_VERSION}" \
   --build-arg "PYARMOR_MODE=${PYARMOR_MODE}" \

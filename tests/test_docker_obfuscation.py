@@ -46,8 +46,19 @@ def test_build_script_supports_amd64_cuda_overrides():
     assert 'DOCKER_PLATFORM="${DOCKER_PLATFORM:-}"' in build_script
     assert 'RUNTIME_IMAGE="${RUNTIME_IMAGE:-${PYTHON_IMAGE}}"' in build_script
     assert 'INSTALL_RUNTIME_PYTHON="${INSTALL_RUNTIME_PYTHON:-0}"' in build_script
+    assert 'PYPI_INDEX_URL="${PYPI_INDEX_URL:-https://pypi.org/simple}"' in build_script
     assert '--build-arg "RUNTIME_IMAGE=${RUNTIME_IMAGE}"' in build_script
     assert '--build-arg "INSTALL_RUNTIME_PYTHON=${INSTALL_RUNTIME_PYTHON}"' in build_script
+    assert '--build-arg "PYPI_INDEX_URL=${PYPI_INDEX_URL}"' in build_script
+
+
+def test_dockerfile_uses_separate_pypi_index_for_runtime_requirements():
+    dockerfile = (
+        Path(__file__).resolve().parents[1] / "docker" / "Dockerfile.obfuscated"
+    ).read_text(encoding="utf-8")
+
+    assert "ARG PYPI_INDEX_URL=https://pypi.org/simple" in dockerfile
+    assert '--index-url "${PYPI_INDEX_URL}" -r /tmp/requirements-runtime.txt' in dockerfile
 
 
 def test_run_script_supports_readonly_config_mount():
