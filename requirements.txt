@@ -27,6 +27,9 @@ soundfile==0.13.1
 
 # VAD (语音活动检测)
 funasr==1.2.6
+# FunASR runtime imports these modules but does not declare them as pip dependencies.
+torch==2.7.0
+torchaudio==2.7.0
 
 # 配置文件解析
 tomli==2.0.1

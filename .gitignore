@@ -6,6 +6,8 @@ __pycache__/
 app.*.*
 *.json
 *.txt
+!requirements.txt
+!requirements-*.txt
 *.toml
 .env
 *.md~
@@ -13,6 +15,8 @@ app.*.*
 .idea/
 .vscode/
 *.wav
+!tests/audio_cases/
+!tests/audio_cases/*.wav
 *.mp3
 *.aac
 *.egg-info/
@@ -20,3 +24,5 @@ app.*.*
 .claude
 vad_model/example/
 vad_model/fig/
+/openspec/
+/.codex/

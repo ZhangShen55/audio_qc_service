@@ -1,0 +1,32 @@
+# ============================================
+# Linux GPU environment (NVIDIA CUDA 12.8)
+# ============================================
+# System dependencies:
+#   apt-get update && apt-get install -y ffmpeg libsndfile1
+#
+# Requires an NVIDIA driver compatible with CUDA 12.8 wheels.
+# For Docker, use an NVIDIA runtime/base image and run with GPU access.
+
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+# PyTorch CUDA runtime for FunASR
+torch==2.7.0+cu128
+torchaudio==2.7.0+cu128
+
+# FastAPI framework and server
+fastapi==0.115.12
+uvicorn==0.34.2
+python-multipart==0.0.20
+
+# Data processing and scientific computing
+numpy==1.26.4
+scipy==1.15.2
+
+# Audio processing
+soundfile==0.13.1
+
+# VAD
+funasr==1.2.6
+
+# Config parsing
+tomli==2.0.1

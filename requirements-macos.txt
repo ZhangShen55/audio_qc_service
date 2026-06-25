@@ -1,0 +1,30 @@
+# ============================================
+# macOS / CPU-MPS environment
+# ============================================
+# System dependencies:
+#   brew install ffmpeg libsndfile
+#
+# PyTorch on macOS installs CPU/MPS-capable wheels from PyPI.
+# FunASR recommends installing PyTorch + torchaudio before funasr.
+
+# PyTorch runtime for FunASR
+torch==2.12.1
+torchaudio==2.11.0
+
+# FastAPI framework and server
+fastapi==0.115.12
+uvicorn==0.34.2
+python-multipart==0.0.20
+
+# Data processing and scientific computing
+numpy==1.26.4
+scipy==1.15.2
+
+# Audio processing
+soundfile==0.13.1
+
+# VAD
+funasr==1.2.6
+
+# Config parsing
+tomli==2.0.1
