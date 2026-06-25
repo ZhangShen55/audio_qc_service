@@ -14,7 +14,7 @@ from typing import Iterable
 
 
 INTERNAL_PACKAGE = "_x"
-WRAPPER_MARKER = "# generated compatibility wrapper"
+WRAPPER_MARKER = "# 生成的兼容包装模块"
 DEFAULT_SALT = "jy-audio-qc-v1.0.0"
 DEFAULT_CONDA_ENV = "audio_qc"
 DEFAULT_PYARMOR_MODE = "basic"
@@ -83,7 +83,7 @@ def copy_file(src: Path, dst: Path) -> None:
 
 def wrapper_text(random_name: str) -> str:
     return (
-        f"{WRAPPER_MARKER}; protected implementation lives in {INTERNAL_PACKAGE}.{random_name}\n"
+        f"{WRAPPER_MARKER}；受保护实现位于 {INTERNAL_PACKAGE}.{random_name}\n"
         f"from {INTERNAL_PACKAGE}.{random_name} import *  # noqa: F401,F403\n"
     )
 
@@ -92,7 +92,7 @@ def prepare_staging(repo_root: Path, build_dir: Path, salt: str = DEFAULT_SALT) 
     repo_root = repo_root.resolve()
     source_app = repo_root / "app"
     if not source_app.is_dir():
-        raise ObfuscationBuildError(f"app directory not found: {source_app}")
+        raise ObfuscationBuildError(f"未找到 app 目录: {source_app}")
 
     build_root = build_dir.resolve()
     stage_root = build_root / "stage"
@@ -152,7 +152,7 @@ def assert_no_original_protected_sources(app_root: Path, manifest: dict) -> None
             continue
         text = candidate.read_text(encoding="utf-8")
         if not text.startswith(WRAPPER_MARKER):
-            raise ObfuscationBuildError(f"protected source is not a generated wrapper: {rel}")
+            raise ObfuscationBuildError(f"受保护源码不是生成的 wrapper: {rel}")
 
 
 def run_command(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -202,18 +202,18 @@ def validate_pyarmor(
     mode: str = DEFAULT_PYARMOR_MODE,
 ) -> str:
     if mode not in {"basic", "pro"}:
-        raise ObfuscationBuildError("PYARMOR_MODE must be 'basic' or 'pro'")
+        raise ObfuscationBuildError("PYARMOR_MODE 必须是 'basic' 或 'pro'")
 
     resolved = resolve_pyarmor_bin(pyarmor_bin, conda_env=conda_env)
     if resolved is None:
         raise ObfuscationBuildError(
-            "PyArmor is required for obfuscated Docker builds. Install PyArmor "
-            f"for conda env '{conda_env}', then rerun docker/build.sh."
+            "混淆版 Docker 构建需要安装 PyArmor。请在 "
+            f"conda 环境 '{conda_env}' 中安装 PyArmor，然后重新执行 docker/build.sh。"
         )
 
     version = run_command([resolved, "--version"])
     if version.returncode != 0:
-        raise ObfuscationBuildError(f"failed to run PyArmor: {version.stdout.strip()}")
+        raise ObfuscationBuildError(f"执行 PyArmor 失败: {version.stdout.strip()}")
 
     if mode == "basic":
         return resolved
@@ -226,7 +226,7 @@ def validate_pyarmor(
     probe = run_command([resolved, "gen", "--enable-rft", "-O", str(probe_out), str(probe_src)])
     if probe.returncode != 0:
         raise ObfuscationBuildError(
-            "PyArmor Pro RFT probe failed. Confirm PyArmor Pro is installed and registered.\n"
+            "PyArmor Pro RFT 探测失败。请确认 PyArmor Pro 已安装并完成注册。\n"
             + probe.stdout.strip()
         )
     return resolved
@@ -254,7 +254,7 @@ def run_pyarmor(
     cmd.append(str(stage_app / INTERNAL_PACKAGE))
     result = run_command(cmd)
     if result.returncode != 0:
-        raise ObfuscationBuildError("PyArmor obfuscation failed.\n" + result.stdout.strip())
+        raise ObfuscationBuildError("PyArmor 混淆失败。\n" + result.stdout.strip())
 
 
 def copy_pyarmor_output(obfuscated_root: Path, context_app: Path) -> None:
@@ -264,7 +264,7 @@ def copy_pyarmor_output(obfuscated_root: Path, context_app: Path) -> None:
 
     internal_src = obfuscated_root / INTERNAL_PACKAGE
     if not internal_src.is_dir():
-        raise ObfuscationBuildError(f"obfuscated internal package not found: {internal_src}")
+        raise ObfuscationBuildError(f"未找到混淆后的内部包: {internal_src}")
     shutil.copytree(internal_src, internal_dst)
 
     for item in obfuscated_root.iterdir():
@@ -311,7 +311,7 @@ def assemble_context(repo_root: Path, result: PrepareResult, obfuscated_root: Pa
         src = repo_root / rel
         dst = context_root / rel
         if not src.exists():
-            raise ObfuscationBuildError(f"required deployment asset not found: {src}")
+            raise ObfuscationBuildError(f"未找到必需的部署资源: {src}")
         if src.is_dir():
             shutil.copytree(src, dst)
         else:
@@ -337,7 +337,7 @@ def prepare_obfuscated_context(
     enable_rft: bool,
 ) -> PrepareResult:
     if enable_rft and mode != "pro":
-        raise ObfuscationBuildError("PYARMOR_ENABLE_RFT=1 requires PYARMOR_MODE=pro")
+        raise ObfuscationBuildError("PYARMOR_ENABLE_RFT=1 要求 PYARMOR_MODE=pro")
 
     build_root = build_dir.resolve()
     build_root.mkdir(parents=True, exist_ok=True)
@@ -360,7 +360,7 @@ def prepare_obfuscated_context(
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Prepare an obfuscated Docker build context.")
+    parser = argparse.ArgumentParser(description="准备混淆版 Docker 构建上下文。")
     parser.add_argument("--repo-root", type=Path, default=Path.cwd())
     parser.add_argument("--build-dir", type=Path, default=Path("docker/.build"))
     parser.add_argument("--salt", default=os.environ.get("OBFUSCATION_SALT", DEFAULT_SALT))
@@ -368,19 +368,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--conda-env",
         default=os.environ.get("PYARMOR_CONDA_ENV", DEFAULT_CONDA_ENV),
-        help="Conda environment used as a fallback when pyarmor is not on PATH.",
+        help="当 PATH 中没有 pyarmor 时，用作兜底的 Conda 环境。",
     )
     parser.add_argument(
         "--enable-rft",
         action="store_true",
         default=os.environ.get("PYARMOR_ENABLE_RFT", "0") == "1",
-        help="Enable PyArmor RFT for protected modules after the Pro probe passes.",
+        help="Pro 探测通过后，为受保护模块启用 PyArmor RFT。",
     )
     parser.add_argument(
         "--mode",
         choices=("basic", "pro"),
         default=os.environ.get("PYARMOR_MODE", DEFAULT_PYARMOR_MODE),
-        help="basic works with PyArmor free/trial; pro requires an RFT-capable PyArmor Pro license.",
+        help="basic 兼容 PyArmor free/trial；pro 需要支持 RFT 的 PyArmor Pro 授权。",
     )
     return parser.parse_args(argv)
 
@@ -398,7 +398,7 @@ def main(argv: list[str]) -> int:
             enable_rft=args.enable_rft,
         )
     except ObfuscationBuildError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        print(f"错误: {exc}", file=sys.stderr)
         return 2
 
     print(json.dumps({"context": str(result.context_root), "stage": str(result.stage_root)}, indent=2))

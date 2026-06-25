@@ -71,7 +71,7 @@ def test_prepare_staging_randomizes_protected_modules_and_writes_wrappers(tmp_pa
     )
     assert (result.stage_app / "services" / "qc_service.py").read_text(
         encoding="utf-8"
-    ).startswith("# generated compatibility wrapper")
+    ).startswith("# 生成的兼容包装模块")
 
 
 def test_original_protected_source_detector_rejects_unwrapped_files(tmp_path):
@@ -85,7 +85,7 @@ def test_original_protected_source_detector_rejects_unwrapped_files(tmp_path):
     try:
         helper.assert_no_original_protected_sources(app_root, manifest)
     except helper.ObfuscationBuildError as exc:
-        assert "not a generated wrapper" in str(exc)
+        assert "不是生成的 wrapper" in str(exc)
     else:
         raise AssertionError("expected original protected source detection to fail")
 
@@ -174,6 +174,6 @@ def test_enable_rft_requires_pro_mode(tmp_path, monkeypatch):
             enable_rft=True,
         )
     except helper.ObfuscationBuildError as exc:
-        assert "requires PYARMOR_MODE=pro" in str(exc)
+        assert "要求 PYARMOR_MODE=pro" in str(exc)
     else:
         raise AssertionError("expected RFT in basic mode to fail")

@@ -21,7 +21,7 @@ for _ in $(seq 1 90); do
     break
   fi
   if ! docker inspect "${CONTAINER_NAME}" >/dev/null 2>&1; then
-    echo "container exited before health check succeeded" >&2
+    echo "容器在健康检查成功前已退出" >&2
     docker logs "${CONTAINER_NAME}" >&2 || true
     exit 1
   fi
@@ -63,10 +63,10 @@ import sys
 
 payload = json.loads(open(sys.argv[1], encoding="utf-8").read())
 if payload.get("status_code") != 200:
-    raise SystemExit(f"audio QC status_code was not 200: {payload}")
+    raise SystemExit(f"音频质检 status_code 不是 200: {payload}")
 data = payload.get("data")
 if not isinstance(data, dict) or "vad" not in data:
-    raise SystemExit(f"audio QC payload missing data.vad: {payload}")
+    raise SystemExit(f"音频质检响应缺少 data.vad: {payload}")
 PY
 
 docker exec "${CONTAINER_NAME}" python - <<'PY'
@@ -80,10 +80,10 @@ manifest = json.loads(Path("/srv/app/obfuscation-manifest.json").read_text(encod
 bad = []
 for rel in manifest.get("protected_modules", []):
     candidate = app_root / rel
-    if candidate.exists() and not candidate.read_text(encoding="utf-8").startswith("# generated compatibility wrapper"):
+    if candidate.exists() and not candidate.read_text(encoding="utf-8").startswith("# 生成的兼容包装模块"):
         bad.append(rel)
 if bad:
-    raise SystemExit("protected original source files found: " + ", ".join(bad))
+    raise SystemExit("发现受保护模块的原始源码: " + ", ".join(bad))
 PY
 
-echo "Verified ${IMAGE_TAG}"
+echo "已验证 ${IMAGE_TAG}"

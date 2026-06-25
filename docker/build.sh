@@ -48,4 +48,4 @@ docker image rm "${TEMP_TAG}" >/dev/null 2>&1 || true
 rm -rf "${BUILD_DIR}"
 
 trap - EXIT
-echo "Built and verified ${FINAL_TAG}"
+echo "已构建并验证 ${FINAL_TAG}"

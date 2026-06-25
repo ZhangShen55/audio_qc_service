@@ -11,7 +11,7 @@ FAILED_ONLY=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --tag)
-      EXTRA_TAG="${2:?missing value for --tag}"
+      EXTRA_TAG="${2:?--tag 缺少参数值}"
       shift 2
       ;;
     --keep-final)
@@ -23,7 +23,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      echo "unknown argument: $1" >&2
+      echo "未知参数: $1" >&2
       exit 2
       ;;
   esac

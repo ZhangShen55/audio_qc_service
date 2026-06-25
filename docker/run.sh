@@ -15,4 +15,4 @@ fi
 args+=("${IMAGE_TAG}")
 
 docker "${args[@]}"
-echo "Container ${CONTAINER_NAME} started from ${IMAGE_TAG} on http://127.0.0.1:${PORT}"
+echo "容器 ${CONTAINER_NAME} 已从镜像 ${IMAGE_TAG} 启动，访问地址：http://127.0.0.1:${PORT}"
