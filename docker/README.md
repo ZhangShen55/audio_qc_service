@@ -6,7 +6,7 @@
 jy-algorithm-app-audio-qc:v1.0.0
 ```
 
-默认构建 CPU 镜像。GPU 部署可通过覆盖 PyTorch 轮子参数实现，运行环境需要 Linux 主机、NVIDIA 驱动和 NVIDIA container runtime。
+默认构建 CPU 镜像。GPU 部署可通过覆盖运行阶段基础镜像、PyTorch CUDA 轮子参数和目标平台实现，运行环境需要 Linux 主机、NVIDIA 驱动和 NVIDIA container runtime。
 
 ## 前置要求
 
@@ -124,6 +124,44 @@ TORCH_VERSION=2.7.0+cu128 \
 TORCHAUDIO_VERSION=2.7.0+cu128 \
 docker/build.sh
 ```
+
+上面的示例只替换 PyTorch CUDA wheel，适合运行阶段基础镜像本身已经带 CUDA runtime 的情况。若要构建 x86 架构并带 CUDA runtime 的镜像，使用下面的 amd64 CUDA 构建方式。
+
+## x86 CUDA 镜像
+
+目标是 `linux/amd64`，并在运行阶段使用 NVIDIA CUDA runtime 镜像：
+
+```bash
+DOCKER_PLATFORM=linux/amd64 \
+RUNTIME_IMAGE=nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04 \
+INSTALL_RUNTIME_PYTHON=1 \
+TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128 \
+TORCH_VERSION=2.7.0+cu128 \
+TORCHAUDIO_VERSION=2.7.0+cu128 \
+IMAGE_VERSION=v1.0.0-cuda-amd64 \
+GPU=1 \
+docker/build.sh
+```
+
+参数说明：
+
+- `DOCKER_PLATFORM=linux/amd64`：构建 x86_64/amd64 镜像。
+- `RUNTIME_IMAGE=nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04`：运行阶段使用 NVIDIA CUDA 12.8 + cuDNN runtime。
+- `INSTALL_RUNTIME_PYTHON=1`：NVIDIA CUDA runtime 镜像默认不是 Python 镜像，需要安装 Python 3 和 pip。
+- `TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128`：安装 CUDA 12.8 对应的 PyTorch wheel。
+- `IMAGE_VERSION=v1.0.0-cuda-amd64`：建议给 CUDA/x86 镜像单独 tag，避免覆盖 CPU 镜像。
+- `GPU=1`：构建后的验证容器会使用 `--gpus all`。只有在带 NVIDIA GPU 和 NVIDIA container runtime 的 Linux 机器上才能这样验证。
+
+如果是在 Apple Silicon Mac 上构建，`DOCKER_PLATFORM=linux/amd64` 会走跨架构构建，速度会明显变慢，而且无法真实验证 CUDA/GPU 推理。建议在目标 x86 Linux GPU 机器或 CI runner 上执行上面的构建命令。
+
+要让服务实际使用 GPU，还需要部署配置中使用 CUDA 设备，例如 `config.toml` 中：
+
+```toml
+[audio_qc]
+device = "cuda:0"
+```
+
+如果配置仍是 `device = "cpu"`，容器即使带 CUDA runtime，也会按 CPU 路径运行。
 
 GPU 容器运行示例：
 

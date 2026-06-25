@@ -31,8 +31,23 @@ def test_dockerfile_obfuscates_inside_linux_builder_stage():
     ).read_text(encoding="utf-8")
 
     assert "AS obfuscator" in dockerfile
+    assert "ARG RUNTIME_IMAGE=python:3.10-slim" in dockerfile
+    assert "FROM ${RUNTIME_IMAGE} AS runtime" in dockerfile
+    assert "ARG INSTALL_RUNTIME_PYTHON=0" in dockerfile
     assert "pip install --no-cache-dir -U pip pyarmor" in dockerfile
     assert "COPY --from=obfuscator /work/build/context/app /srv/app/app" in dockerfile
+
+
+def test_build_script_supports_amd64_cuda_overrides():
+    build_script = (Path(__file__).resolve().parents[1] / "docker" / "build.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'DOCKER_PLATFORM="${DOCKER_PLATFORM:-}"' in build_script
+    assert 'RUNTIME_IMAGE="${RUNTIME_IMAGE:-${PYTHON_IMAGE}}"' in build_script
+    assert 'INSTALL_RUNTIME_PYTHON="${INSTALL_RUNTIME_PYTHON:-0}"' in build_script
+    assert '--build-arg "RUNTIME_IMAGE=${RUNTIME_IMAGE}"' in build_script
+    assert '--build-arg "INSTALL_RUNTIME_PYTHON=${INSTALL_RUNTIME_PYTHON}"' in build_script
 
 
 def test_generated_module_names_are_short_lowercase_and_stable():

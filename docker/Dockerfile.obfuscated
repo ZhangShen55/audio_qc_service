@@ -1,4 +1,5 @@
 ARG PYTHON_IMAGE=python:3.10-slim
+ARG RUNTIME_IMAGE=python:3.10-slim
 
 FROM ${PYTHON_IMAGE} AS obfuscator
 
@@ -27,13 +28,16 @@ RUN PYARMOR_MODE="${PYARMOR_MODE}" \
         --build-dir /work/build \
         --mode "${PYARMOR_MODE}"
 
-FROM ${PYTHON_IMAGE} AS runtime
+FROM ${RUNTIME_IMAGE} AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/srv/app/app
+    PYTHONPATH=/srv/app/app \
+    DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /srv/app
+
+ARG INSTALL_RUNTIME_PYTHON=0
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -41,6 +45,11 @@ RUN apt-get update \
         curl \
         ffmpeg \
         libsndfile1 \
+        $(if [ "${INSTALL_RUNTIME_PYTHON}" = "1" ]; then echo "python3 python3-pip python3-venv"; fi) \
+    && if [ "${INSTALL_RUNTIME_PYTHON}" = "1" ]; then \
+        ln -sf /usr/bin/python3 /usr/local/bin/python; \
+        ln -sf /usr/bin/pip3 /usr/local/bin/pip; \
+    fi \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=obfuscator /work/build/context/requirements-runtime.txt /tmp/requirements-runtime.txt

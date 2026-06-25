@@ -11,6 +11,9 @@ TORCH_INDEX_URL="${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}"
 TORCH_VERSION="${TORCH_VERSION:-2.7.0+cpu}"
 TORCHAUDIO_VERSION="${TORCHAUDIO_VERSION:-2.7.0}"
 PYTHON_IMAGE="${PYTHON_IMAGE:-python:3.10-slim}"
+RUNTIME_IMAGE="${RUNTIME_IMAGE:-${PYTHON_IMAGE}}"
+INSTALL_RUNTIME_PYTHON="${INSTALL_RUNTIME_PYTHON:-0}"
+DOCKER_PLATFORM="${DOCKER_PLATFORM:-}"
 PYARMOR_CONDA_ENV="${PYARMOR_CONDA_ENV:-audio_qc}"
 PYARMOR_MODE="${PYARMOR_MODE:-basic}"
 PYARMOR_ENABLE_RFT="${PYARMOR_ENABLE_RFT:-0}"
@@ -28,9 +31,17 @@ trap cleanup_on_error EXIT
 
 cd "${ROOT_DIR}"
 
+platform_args=()
+if [[ -n "${DOCKER_PLATFORM}" ]]; then
+  platform_args=(--platform "${DOCKER_PLATFORM}")
+fi
+
 docker build \
+  "${platform_args[@]}" \
   -f docker/Dockerfile.obfuscated \
   --build-arg "PYTHON_IMAGE=${PYTHON_IMAGE}" \
+  --build-arg "RUNTIME_IMAGE=${RUNTIME_IMAGE}" \
+  --build-arg "INSTALL_RUNTIME_PYTHON=${INSTALL_RUNTIME_PYTHON}" \
   --build-arg "TORCH_INDEX_URL=${TORCH_INDEX_URL}" \
   --build-arg "TORCH_VERSION=${TORCH_VERSION}" \
   --build-arg "TORCHAUDIO_VERSION=${TORCHAUDIO_VERSION}" \
