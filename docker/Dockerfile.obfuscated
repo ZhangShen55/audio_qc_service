@@ -1,0 +1,70 @@
+ARG PYTHON_IMAGE=python:3.10-slim
+
+FROM ${PYTHON_IMAGE} AS obfuscator
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /work
+
+RUN pip install --no-cache-dir -U pip pyarmor
+
+COPY app /work/app
+COPY config.toml /work/config.toml
+COPY vad_model /work/vad_model
+COPY docker/prepare_obfuscated_app.py /work/docker/prepare_obfuscated_app.py
+COPY docker/requirements-runtime.txt /work/docker/requirements-runtime.txt
+
+ARG PYARMOR_MODE=basic
+ARG PYARMOR_ENABLE_RFT=0
+ARG OBFUSCATION_SALT=jy-audio-qc-v1.0.0
+
+RUN PYARMOR_MODE="${PYARMOR_MODE}" \
+    PYARMOR_ENABLE_RFT="${PYARMOR_ENABLE_RFT}" \
+    OBFUSCATION_SALT="${OBFUSCATION_SALT}" \
+    python docker/prepare_obfuscated_app.py \
+        --repo-root /work \
+        --build-dir /work/build \
+        --mode "${PYARMOR_MODE}"
+
+FROM ${PYTHON_IMAGE} AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/srv/app/app
+
+WORKDIR /srv/app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        ffmpeg \
+        libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=obfuscator /work/build/context/requirements-runtime.txt /tmp/requirements-runtime.txt
+
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+ARG TORCH_VERSION=2.7.0+cpu
+ARG TORCHAUDIO_VERSION=2.7.0
+
+RUN pip install --no-cache-dir -U pip \
+    && pip install --no-cache-dir \
+        --index-url "${TORCH_INDEX_URL}" \
+        --extra-index-url https://pypi.org/simple \
+        "torch==${TORCH_VERSION}" \
+        "torchaudio==${TORCHAUDIO_VERSION}" \
+    && pip install --no-cache-dir -r /tmp/requirements-runtime.txt
+
+COPY --from=obfuscator /work/build/context/app /srv/app/app
+COPY --from=obfuscator /work/build/context/config.toml /srv/app/config.toml
+COPY --from=obfuscator /work/build/context/vad_model /srv/app/vad_model
+COPY --from=obfuscator /work/build/context/obfuscation-manifest.json /srv/app/obfuscation-manifest.json
+
+EXPOSE 8090
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8090/audio/health >/dev/null || exit 1
+
+CMD ["uvicorn", "main:app", "--app-dir", "app", "--host", "0.0.0.0", "--port", "8090"]

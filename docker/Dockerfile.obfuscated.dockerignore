@@ -1,0 +1,17 @@
+.git/
+.codex/
+openspec/
+tests/
+docs/
+scripts/
+logs/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.venv/
+.env
+docker/.build/

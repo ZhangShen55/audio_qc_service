@@ -6,9 +6,14 @@ __pycache__/
 *.egg-info/
 .dist/
 build/
+docker/.build/
 .venv/
 .env
 .git/
+.codex/
+openspec/
+.pytest_cache/
+logs/
 tests/
 docs/
 scripts/

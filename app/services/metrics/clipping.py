@@ -47,5 +47,19 @@ def detect_clipping_events(
             start_sample = int(idx[s_i])
             start_time_ms = int(round(start_sample * 1000.0 / sr))
             times_ms.append(start_time_ms)
-    
     return ClippingResult(count=cnt, times_ms=times_ms)
+
+
+def count_clipping_events(
+    x: np.ndarray,
+    sr: int = 16000,
+    clip_threshold: float = 0.99,
+    min_event_samples: int = 10,
+) -> int:
+    """Return only the clipping event count for callers that do not need timings."""
+    return detect_clipping_events(
+        x,
+        sr=sr,
+        clip_threshold=clip_threshold,
+        min_event_samples=min_event_samples,
+    ).count
