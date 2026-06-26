@@ -1,315 +1,156 @@
 # 混淆版 Docker 部署说明
 
-本目录提供音频质检服务的混淆版 Docker 部署方案，最终镜像名称为：
+本项目的固定部署入口已经收敛到仓库根目录的 `Dockerfile` 和 `compose.yml`。
+
+固定镜像名：
 
 ```bash
-jy-algorithm-app-audio-qc:v1.0.0
+jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64
 ```
 
-默认构建 CPU 镜像。GPU 部署可通过覆盖运行阶段基础镜像、PyTorch CUDA 轮子参数和目标平台实现，运行环境需要 Linux 主机、NVIDIA 驱动和 NVIDIA container runtime。
-
-## 前置要求
-
-- Docker 29+，或兼容的 Docker Engine。
-- 构建主机可使用 Python 3。
-- 构建 Docker 镜像时可以访问网络，用于安装 Python 依赖。
-- 可选：在本机 conda 环境 `audio_qc` 中安装 PyArmor，用于本地预检查。
-- GPU 部署需要 NVIDIA 驱动、NVIDIA container runtime，以及匹配 CUDA 版本的 PyTorch 轮子参数。
-
-本方案不使用 outer-key 授权。PyArmor 只作为构建期源码保护步骤使用。
-
-默认模式兼容 PyArmor 免费版/试用版：
+固定运行配置挂载路径：
 
 ```bash
-PYARMOR_MODE=basic docker/build.sh
+/root/config/config_audio_qc.toml:/srv/app/config.toml:ro
 ```
 
-该模式把 PyArmor basic 混淆、内部实现文件随机命名、兼容包装模块结合起来使用。没有 Pro 授权时，这是当前方案中可用的最强保护方式。
+以下命令都在仓库根目录执行。
 
-Dockerfile 会在 Linux 构建阶段安装并运行 PyArmor。这样做是必要的，因为 macOS 上生成的 PyArmor 运行时不能直接复制到 Linux 容器中使用。最终运行阶段只复制 Linux 构建阶段生成的混淆应用上下文。
-
-如果后续在自定义 builder 流程中注册了 PyArmor Pro，并且需要启用 RFT，可使用：
+## 构建镜像
 
 ```bash
-PYARMOR_MODE=pro PYARMOR_ENABLE_RFT=1 docker/build.sh
+docker build -t jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64 .
 ```
 
-## 在 Conda 中安装 PyArmor
+这个 `Dockerfile` 已经固化以下内容：
 
-Docker 镜像构建会在 Linux 构建阶段自行安装 PyArmor。本地安装脚本是可选的，主要用于本地命令行预检查；脚本会优先查找 `PATH` 中的 `pyarmor`，找不到时再尝试 conda 环境 `audio_qc`。
+- 构建阶段使用 `python:3.11-slim`。
+- 运行阶段使用 `pytorch/pytorch:2.6.0-cuda11.8-cudnn9-runtime`。
+- PyTorch 使用 `torch==2.6.0+cu118` 和 `torchaudio==2.6.0+cu118`。
+- 普通依赖从 `https://pypi.org/simple` 安装。
+- PyArmor 使用免费版可用的 `basic` 模式。
+- 服务端口固定为 `8090`。
 
-安装到 `audio_qc`：
+## Docker Run 运行
+
+先确保宿主机配置文件存在：
 
 ```bash
-docker/install_pyarmor.sh
+ls -l /root/config/config_audio_qc.toml
 ```
 
-也可以手动安装：
+启动容器：
 
 ```bash
-conda activate audio_qc
-python -m pip install -U pyarmor
+docker rm -f audio-qc-obfuscated >/dev/null 2>&1 || true
+
+docker run -d \
+  --name audio-qc-obfuscated \
+  -p 8090:8090 \
+  -v /root/config/config_audio_qc.toml:/srv/app/config.toml:ro \
+  jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64
 ```
 
-如果需要 Pro/RFT 模式，可选注册 PyArmor Pro：
+查看日志：
 
 ```bash
-conda run -n audio_qc pyarmor reg /path/to/pyarmor-regfile.zip
+docker logs -f audio-qc-obfuscated
 ```
 
-验证 PyArmor：
+停止容器：
 
 ```bash
-conda run -n audio_qc pyarmor --version
+docker rm -f audio-qc-obfuscated
 ```
 
-使用 `PYARMOR_MODE=pro` 时，输出需要显示支持 RFT，例如 `RFT Mode: Yes`。试用授权通常显示 `RFT Mode: No`，因此没有 Pro 注册时请保持默认 `PYARMOR_MODE=basic`。
+## Docker Compose 运行
 
-如需使用其他 conda 环境：
+首次构建并启动：
 
 ```bash
-PYARMOR_CONDA_ENV=my_env docker/build.sh
+docker compose up -d --build
 ```
 
-## 文件说明
-
-- `Dockerfile.obfuscated`：混淆版镜像的 Dockerfile。
-- `prepare_obfuscated_app.py`：生成干净的混淆构建上下文。
-- `build.sh`：构建临时镜像、验证、打最终标签，并清理临时镜像。
-- `run.sh`：从指定镜像标签启动容器。
-- `verify.sh`：验证健康检查、音频质检接口，以及受保护源码是否不存在。
-- `cleanup.sh`：只清理本项目的临时容器和临时镜像 tag。
-- `requirements-runtime.txt`：运行时 Python 依赖，不包含 Torch/Torchaudio。
-
-## 保护模型
-
-FastAPI 和 Uvicorn 需要稳定的 import 路径和路由签名。因此 `app/main.py`、`app/api/*.py` 等入口文件会作为较薄的稳定模块保留。
-
-受保护的实现模块会被复制到内部包 `_x`，并使用 4 到 6 位小写字母文件名。原模块路径会变成兼容包装模块，例如：
-
-```python
-# 生成的兼容包装模块；受保护实现位于 _x.abcde
-from _x.abcde import *
-```
-
-随后 PyArmor 会混淆内部 `_x` 包。这样最终镜像既能保留服务运行所需的 import 路径，又能避免把受保护模块的原始源码放进运行时镜像。
-
-## 构建
-
-在仓库根目录执行：
+已有镜像时直接启动：
 
 ```bash
-docker/build.sh
+docker compose up -d
 ```
 
-脚本会先构建一个临时验证镜像。只有验证通过后，才会打最终标签：
+查看日志：
 
 ```bash
-jy-algorithm-app-audio-qc:v1.0.0
+docker compose logs -f audio-qc
 ```
 
-CPU 默认参数：
+停止容器：
 
 ```bash
-TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
-PYPI_INDEX_URL=https://pypi.org/simple
-TORCH_VERSION=2.7.0+cpu
-TORCHAUDIO_VERSION=2.7.0
+docker compose down
 ```
 
-GPU 构建示例：
+## 健康检查
 
 ```bash
-TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128 \
-TORCH_VERSION=2.7.0+cu128 \
-TORCHAUDIO_VERSION=2.7.0+cu128 \
-docker/build.sh
+curl http://127.0.0.1:8090/audio/health
 ```
 
-上面的示例只替换 PyTorch CUDA wheel，适合运行阶段基础镜像本身已经带 CUDA runtime 的情况。若要构建 x86 架构并带 CUDA runtime 的镜像，使用下面的 amd64 CUDA 构建方式。
+## GPU 运行
 
-## x86 CUDA 镜像
+当前固定运行命令默认不把 GPU 暴露给容器，等价于原来的 `GPU=0`。
 
-目标是 `linux/amd64`，并在运行阶段使用 NVIDIA CUDA runtime 镜像：
+如果要让容器访问 GPU，需要同时满足：
 
-```bash
-DOCKER_PLATFORM=linux/amd64 \
-RUNTIME_IMAGE=nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04 \
-INSTALL_RUNTIME_PYTHON=1 \
-TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128 \
-PYPI_INDEX_URL=https://pypi.org/simple \
-TORCH_VERSION=2.7.0+cu128 \
-TORCHAUDIO_VERSION=2.7.0+cu128 \
-IMAGE_VERSION=v1.0.0-cuda-amd64 \
-GPU=1 \
-docker/build.sh
-```
-
-参数说明：
-
-- `DOCKER_PLATFORM=linux/amd64`：构建 x86_64/amd64 镜像。
-- `RUNTIME_IMAGE=nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04`：运行阶段使用 NVIDIA CUDA 12.8 + cuDNN runtime。
-- `INSTALL_RUNTIME_PYTHON=1`：NVIDIA CUDA runtime 镜像默认不是 Python 镜像，需要安装 Python 3 和 pip。
-- `TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128`：安装 CUDA 12.8 对应的 PyTorch wheel。
-- `PYPI_INDEX_URL=https://pypi.org/simple`：安装 FastAPI、FunASR、python-multipart 等普通 PyPI 依赖的源。如果服务器不能直连 PyPI，可换成可用的内网源或国内镜像源。
-- `IMAGE_VERSION=v1.0.0-cuda-amd64`：建议给 CUDA/x86 镜像单独 tag，避免覆盖 CPU 镜像。
-- `GPU=1`：构建后的验证容器会使用 `--gpus all`。只有在带 NVIDIA GPU 和 NVIDIA container runtime 的 Linux 机器上才能这样验证。
-
-## 使用已有 PyTorch CUDA 镜像
-
-如果 x86 CUDA 服务器上已经有如下镜像：
-
-```bash
-pytorch/pytorch:2.6.0-cuda11.8-cudnn9-runtime
-```
-
-可以直接把它作为运行阶段基础镜像：
-
-```bash
-DOCKER_PLATFORM=linux/amd64 \
-PYTHON_IMAGE=python:3.11-slim \
-RUNTIME_IMAGE=pytorch/pytorch:2.6.0-cuda11.8-cudnn9-runtime \
-INSTALL_RUNTIME_PYTHON=0 \
-TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118 \
-PYPI_INDEX_URL=https://pypi.org/simple \
-TORCH_VERSION=2.6.0+cu118 \
-TORCHAUDIO_VERSION=2.6.0+cu118 \
-IMAGE_VERSION=v1.0.0-cuda118-amd64 \
-GPU=1 \
-CONFIG_FILE=/absolute/path/to/config.cuda.toml \
-docker/build.sh
-```
-
-这里 `PYTHON_IMAGE=python:3.11-slim` 很重要：该 PyTorch 镜像使用 Python 3.11，PyArmor 构建阶段也应使用 Python 3.11，避免混淆运行时和最终运行环境的 Python ABI 不一致。
-
-如果服务器访问 `https://pypi.org/simple` 不稳定，可改为公司内网 PyPI 源或国内镜像，例如：
-
-```bash
-PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
-```
-
-如果是在 Apple Silicon Mac 上构建，`DOCKER_PLATFORM=linux/amd64` 会走跨架构构建，速度会明显变慢，而且无法真实验证 CUDA/GPU 推理。建议在目标 x86 Linux GPU 机器或 CI runner 上执行上面的构建命令。
-
-要让服务实际使用 GPU，还需要部署配置中使用 CUDA 设备，例如 `config.toml` 中：
+- 宿主机已安装 NVIDIA 驱动。
+- Docker 已安装 NVIDIA container runtime。
+- 配置文件中使用 CUDA 设备，例如：
 
 ```toml
 [audio_qc]
 device = "cuda:0"
 ```
 
-如果配置仍是 `device = "cpu"`，容器即使带 CUDA runtime，也会按 CPU 路径运行。
-
-如果不想修改仓库内的 `config.toml`，可以准备一个外部 CUDA 配置文件并在运行或验证时挂载：
+Docker Run 启用 GPU：
 
 ```bash
-GPU=0 \
-CONFIG_FILE=/root/config/config_audio_qc.toml \
-docker/run.sh jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64
+docker rm -f audio-qc-obfuscated >/dev/null 2>&1 || true
+
+docker run -d \
+  --name audio-qc-obfuscated \
+  --gpus all \
+  -p 8090:8090 \
+  -v /root/config/config_audio_qc.toml:/srv/app/config.toml:ro \
+  jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64
 ```
 
-GPU 容器运行示例：
+Docker Compose 启用 GPU：打开根目录 `compose.yml`，取消下面这一行的注释：
+
+```yaml
+    gpus: all
+```
+
+然后执行：
 
 ```bash
-GPU=1 docker/run.sh jy-algorithm-app-audio-qc:v1.0.0
+docker compose up -d
 ```
 
-## 运行
+## 代码保护方式
 
-```bash
-docker/run.sh jy-algorithm-app-audio-qc:v1.0.0
-```
+本镜像构建时会在 Linux 容器内运行 PyArmor，最终镜像只复制混淆后的应用上下文。
 
-服务默认监听：
+保护方式：
 
-```text
-http://127.0.0.1:8090
-```
+- `app/main.py`、`app/api/*.py` 等入口文件保留稳定 import 路径，保证 FastAPI 和 Uvicorn 正常启动。
+- 受保护实现模块会移动到内部包 `_x`。
+- 内部实现文件名会变成 4 到 6 位小写字母。
+- 原模块路径只保留兼容包装模块。
+- 最终运行镜像不复制受保护模块的原始源码。
 
-覆盖宿主机端口：
+本方案不使用 outer key 授权；默认使用 PyArmor 免费版可用的 `basic` 混淆模式。
 
-```bash
-PORT=18090 docker/run.sh jy-algorithm-app-audio-qc:v1.0.0
-```
+## 高级入口
 
-挂载外部配置文件：
+`docker/build.sh`、`docker/run.sh`、`docker/verify.sh` 和 `docker/Dockerfile.obfuscated` 仍保留给调试或非固定环境使用。
 
-```bash
-CONFIG_FILE=/absolute/path/to/config.toml \
-docker/run.sh jy-algorithm-app-audio-qc:v1.0.0
-```
-
-`CONFIG_FILE` 会以只读方式挂载到容器内：
-
-```text
-/srv/app/config.toml
-```
-
-如果需要同时改端口：
-
-```bash
-PORT=18090 \
-CONFIG_FILE=/absolute/path/to/config.toml \
-docker/run.sh jy-algorithm-app-audio-qc:v1.0.0
-```
-
-## 验证
-
-```bash
-docker/verify.sh jy-algorithm-app-audio-qc:v1.0.0
-```
-
-验证内容：
-
-- `/audio/health` 可以响应。
-- `/audio/qc` 可以接收脚本生成的 12 秒 WAV 文件，并返回业务 `status_code=200`。
-- 运行时镜像中不存在受保护模块的原始源码；受保护的稳定路径必须是生成的包装模块。
-
-手动检查混淆清单：
-
-```bash
-docker run --rm jy-algorithm-app-audio-qc:v1.0.0 \
-  python -c 'import json; print(json.load(open("/srv/app/obfuscation-manifest.json")))'
-```
-
-使用外部配置文件验证：
-
-```bash
-CONFIG_FILE=/absolute/path/to/config.toml \
-docker/verify.sh jy-algorithm-app-audio-qc:v1.0.0
-```
-
-## 清理
-
-构建成功后：
-
-```bash
-docker/cleanup.sh --keep-final
-```
-
-该命令只删除本项目的临时标签和容器，并保留：
-
-```bash
-jy-algorithm-app-audio-qc:v1.0.0
-```
-
-脚本不会执行广泛的 Docker prune，也不会删除无关镜像。
-
-## 故障排查
-
-如果提示 PyArmor 缺失：
-
-```text
-混淆版 Docker 构建需要安装 PyArmor
-```
-
-请在 conda 环境 `audio_qc` 中安装 PyArmor，然后重新执行 `docker/build.sh`。使用 PyArmor 免费版/试用版时保持默认 `PYARMOR_MODE=basic`。
-
-如果 `PYARMOR_MODE=pro` 下 Pro/RFT 探测失败，请确认已注册的授权支持 RFT。免费版/试用版构建应使用 `PYARMOR_MODE=basic`，该模式会跳过 RFT 探测。
-
-如果健康检查超时，可查看日志：
-
-```bash
-docker logs audio-qc-obfuscated-verify
-```
-
-CPU 环境中 VAD 模型预热可能较慢，验证脚本会等待一段时间后才判定失败。
+日常部署请优先使用根目录 `Dockerfile` 和 `compose.yml`，避免再维护大量环境变量参数。

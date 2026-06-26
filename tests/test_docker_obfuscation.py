@@ -61,6 +61,39 @@ def test_dockerfile_uses_separate_pypi_index_for_runtime_requirements():
     assert '--index-url "${PYPI_INDEX_URL}" -r /tmp/requirements-runtime.txt' in dockerfile
 
 
+def test_root_dockerfile_is_fixed_cuda118_obfuscated_entrypoint():
+    dockerfile = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text(
+        encoding="utf-8"
+    )
+
+    assert "ARG AUDIO_QC_PLATFORM=linux/amd64" in dockerfile
+    assert "FROM --platform=${AUDIO_QC_PLATFORM} python:3.11-slim AS obfuscator" in dockerfile
+    assert (
+        "FROM --platform=${AUDIO_QC_PLATFORM} pytorch/pytorch:2.6.0-cuda11.8-cudnn9-runtime AS runtime"
+        in dockerfile
+    )
+    assert "PYARMOR_MODE=basic" in dockerfile
+    assert "--mode basic" in dockerfile
+    assert "--index-url https://download.pytorch.org/whl/cu118" in dockerfile
+    assert "--extra-index-url https://pypi.org/simple" in dockerfile
+    assert '"torch==2.6.0+cu118"' in dockerfile
+    assert '"torchaudio==2.6.0+cu118"' in dockerfile
+    assert "CMD [\"uvicorn\", \"main:app\", \"--app-dir\", \"app\"" in dockerfile
+
+
+def test_compose_file_uses_fixed_image_config_and_port():
+    compose_file = (Path(__file__).resolve().parents[1] / "compose.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "image: jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64" in compose_file
+    assert "platform: linux/amd64" in compose_file
+    assert "dockerfile: Dockerfile" in compose_file
+    assert "container_name: audio-qc-obfuscated" in compose_file
+    assert '"8090:8090"' in compose_file
+    assert "/root/config/config_audio_qc.toml:/srv/app/config.toml:ro" in compose_file
+
+
 def test_run_script_supports_readonly_config_mount():
     run_script = (Path(__file__).resolve().parents[1] / "docker" / "run.sh").read_text(
         encoding="utf-8"
