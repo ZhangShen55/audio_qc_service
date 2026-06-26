@@ -66,7 +66,7 @@ def test_run_script_supports_readonly_config_mount():
         encoding="utf-8"
     )
 
-    assert 'CONFIG_FILE="${CONFIG_FILE:-}"' in run_script
+    assert 'CONFIG_FILE="${CONFIG_FILE:-}"' in run_script.splitlines()
     assert "配置文件不存在" in run_script
     assert '"/srv/app/config.toml:ro"' in run_script
 
