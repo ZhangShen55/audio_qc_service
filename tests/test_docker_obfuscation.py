@@ -61,8 +61,8 @@ def test_dockerfile_uses_separate_pypi_index_for_runtime_requirements():
     assert '--index-url "${PYPI_INDEX_URL}" -r /tmp/requirements-runtime.txt' in dockerfile
 
 
-def test_root_dockerfile_is_fixed_cuda118_obfuscated_entrypoint():
-    dockerfile = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text(
+def test_docker_directory_dockerfile_is_fixed_cuda118_obfuscated_entrypoint():
+    dockerfile = (Path(__file__).resolve().parents[1] / "docker" / "Dockerfile").read_text(
         encoding="utf-8"
     )
 
@@ -82,16 +82,26 @@ def test_root_dockerfile_is_fixed_cuda118_obfuscated_entrypoint():
 
 
 def test_compose_file_uses_fixed_image_config_and_port():
-    compose_file = (Path(__file__).resolve().parents[1] / "compose.yml").read_text(
+    compose_file = (Path(__file__).resolve().parents[1] / "docker" / "compose.yml").read_text(
         encoding="utf-8"
     )
 
+    assert "name: audio_qc_service" in compose_file
     assert "image: jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64" in compose_file
     assert "platform: linux/amd64" in compose_file
-    assert "dockerfile: Dockerfile" in compose_file
+    assert "context: .." in compose_file
+    assert "dockerfile: docker/Dockerfile" in compose_file
     assert "container_name: audio-qc-obfuscated" in compose_file
     assert '"8090:8090"' in compose_file
     assert "/root/config/config_audio_qc.toml:/srv/app/config.toml:ro" in compose_file
+
+
+def test_fixed_deployment_files_live_under_docker_directory():
+    repo_root = Path(__file__).resolve().parents[1]
+
+    assert (repo_root / "docker" / "Dockerfile").is_file()
+    assert (repo_root / "docker" / "compose.yml").is_file()
+    assert not (repo_root / "compose.yml").exists()
 
 
 def test_run_script_supports_readonly_config_mount():

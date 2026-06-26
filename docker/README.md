@@ -1,6 +1,9 @@
 # 混淆版 Docker 部署说明
 
-本项目的固定部署入口已经收敛到仓库根目录的 `Dockerfile` 和 `compose.yml`。
+本项目的固定部署入口已经收敛到 `docker/` 目录：
+
+- `docker/Dockerfile`
+- `docker/compose.yml`
 
 固定镜像名：
 
@@ -19,7 +22,7 @@ jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64
 ## 构建镜像
 
 ```bash
-docker build -t jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64 .
+docker build -f docker/Dockerfile -t jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64 .
 ```
 
 这个 `Dockerfile` 已经固化以下内容：
@@ -68,25 +71,25 @@ docker rm -f audio-qc-obfuscated
 首次构建并启动：
 
 ```bash
-docker compose up -d --build
+docker compose -f docker/compose.yml up -d --build
 ```
 
 已有镜像时直接启动：
 
 ```bash
-docker compose up -d
+docker compose -f docker/compose.yml up -d
 ```
 
 查看日志：
 
 ```bash
-docker compose logs -f audio-qc
+docker compose -f docker/compose.yml logs -f audio-qc
 ```
 
 停止容器：
 
 ```bash
-docker compose down
+docker compose -f docker/compose.yml down
 ```
 
 ## 健康检查
@@ -123,7 +126,7 @@ docker run -d \
   jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64
 ```
 
-Docker Compose 启用 GPU：打开根目录 `compose.yml`，取消下面这一行的注释：
+Docker Compose 启用 GPU：打开 `docker/compose.yml`，取消下面这一行的注释：
 
 ```yaml
     gpus: all
@@ -132,7 +135,7 @@ Docker Compose 启用 GPU：打开根目录 `compose.yml`，取消下面这一�
 然后执行：
 
 ```bash
-docker compose up -d
+docker compose -f docker/compose.yml up -d
 ```
 
 ## 代码保护方式
@@ -153,4 +156,4 @@ docker compose up -d
 
 `docker/build.sh`、`docker/run.sh`、`docker/verify.sh` 和 `docker/Dockerfile.obfuscated` 仍保留给调试或非固定环境使用。
 
-日常部署请优先使用根目录 `Dockerfile` 和 `compose.yml`，避免再维护大量环境变量参数。
+日常部署请优先使用 `docker/Dockerfile` 和 `docker/compose.yml`，避免再维护大量环境变量参数。
