@@ -202,8 +202,8 @@ device = "cuda:0"
 如果不想修改仓库内的 `config.toml`，可以准备一个外部 CUDA 配置文件并在运行或验证时挂载：
 
 ```bash
-GPU=1 \
-CONFIG_FILE=/absolute/path/to/config.cuda.toml \
+GPU=0 \
+CONFIG_FILE=/root/config/config_audio_qc.toml \
 docker/run.sh jy-algorithm-app-audio-qc:v1.0.0-cuda-amd64
 ```
 

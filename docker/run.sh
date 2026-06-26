@@ -5,7 +5,7 @@ IMAGE_TAG="${1:-${IMAGE_TAG:-jy-algorithm-app-audio-qc:v1.0.0}}"
 CONTAINER_NAME="${CONTAINER_NAME:-audio-qc-obfuscated}"
 PORT="${PORT:-8090}"
 GPU="${GPU:-0}"
-CONFIG_FILE="${CONFIG_FILE:-}"
+CONFIG_FILE="${CONFIG_FILE:-}"c
 CONFIG_MOUNT_TARGET="/srv/app/config.toml:ro"
 
 docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
